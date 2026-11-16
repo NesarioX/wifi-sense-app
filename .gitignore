@@ -5,3 +5,8 @@ __pycache__/
 /tmp/
 
 .DS_Store
+
+# 内部部署信息，禁止入库（含 Harbor 地址、Robot 账户、K8s 路径、镜像 digest）
+DEPLOY.md
+tools/
+docs/部署*
