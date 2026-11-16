@@ -31,7 +31,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-APP_VERSION = "0.9.1"
+APP_VERSION = "0.9.2"
 
 st.set_page_config(
     page_title="Wi-Fi Sense | 智能监护平台",
@@ -135,6 +135,119 @@ THEMES = {
     },
 }
 
+THEMES["glass"] = {
+    "bg": "#0A0C10",
+    "sidebar": "rgba(10,12,16,0.52)",
+    "surface": "rgba(255,255,255,0.055)",
+    "surface2": "rgba(255,255,255,0.09)",
+    "border": "rgba(255,255,255,0.13)",
+    "text": "#F2F5F9",
+    "muted": "rgba(226,232,240,0.64)",
+    "accent": "#F08A4B",
+    "accent_hover": "#E57936",
+    "solid": "#C4602B",
+    "solid_hover": "#AC5224",
+    "accent_bg": "rgba(240,138,75,0.12)",
+    "accent_border": "rgba(240,138,75,0.26)",
+    "ok": "#54C79A",
+    "ok_bg": "rgba(84,199,154,0.12)",
+    "ok_border": "rgba(84,199,154,0.26)",
+    "warn": "#E5B165",
+    "warn_bg": "rgba(229,177,101,0.12)",
+    "warn_border": "rgba(229,177,101,0.26)",
+    "danger": "#E77B85",
+    "danger_bg": "rgba(231,123,133,0.12)",
+    "danger_border": "rgba(231,123,133,0.26)",
+    "muted_bg": "rgba(255,255,255,0.05)",
+    "muted_border": "rgba(255,255,255,0.12)",
+    "header_bg": "rgba(10,12,16,0.30)",
+    "hover_bg": "rgba(255,255,255,0.10)",
+    "nav_active_bg": "rgba(240,138,75,0.14)",
+    "nav_active_border": "rgba(240,138,75,0.30)",
+    "nav_active_text": "#FFD9BE",
+    "btn": "rgba(255,255,255,0.07)",
+    "btn_hover": "rgba(255,255,255,0.11)",
+    "btn_border": "rgba(255,255,255,0.16)",
+    "btn_text": "#EDF1F6",
+    "input": "rgba(255,255,255,0.06)",
+    "grid": "rgba(255,255,255,0.08)",
+    "table_head": "rgba(255,255,255,0.06)",
+    "row_alt": "transparent",
+    "shadow": "none",
+    "container_bg": "rgba(255,255,255,0.05)",
+    "template": "plotly_dark",
+    "mode": "glass",
+}
+
+THEMES["glass_light"] = {
+    "bg": "#EDE8E0",
+    "sidebar": "rgba(255,255,255,0.55)",
+    "surface": "rgba(255,255,255,0.62)",
+    "surface2": "rgba(255,255,255,0.80)",
+    "border": "rgba(22,30,40,0.12)",
+    "text": "#1B2027",
+    "muted": "rgba(28,36,46,0.62)",
+    "accent": "#C4622A",
+    "accent_hover": "#A94F1F",
+    "solid": "#B8561F",
+    "solid_hover": "#9C4718",
+    "accent_bg": "rgba(196,98,42,0.10)",
+    "accent_border": "rgba(196,98,42,0.22)",
+    "ok": "#1E8E63",
+    "ok_bg": "rgba(30,142,99,0.10)",
+    "ok_border": "rgba(30,142,99,0.24)",
+    "warn": "#A06615",
+    "warn_bg": "rgba(160,102,21,0.10)",
+    "warn_border": "rgba(160,102,21,0.24)",
+    "danger": "#B04250",
+    "danger_bg": "rgba(176,66,80,0.10)",
+    "danger_border": "rgba(176,66,80,0.24)",
+    "muted_bg": "rgba(22,30,40,0.05)",
+    "muted_border": "rgba(22,30,40,0.12)",
+    "header_bg": "rgba(255,255,255,0.42)",
+    "hover_bg": "rgba(22,30,40,0.06)",
+    "nav_active_bg": "rgba(196,98,42,0.12)",
+    "nav_active_border": "rgba(196,98,42,0.26)",
+    "nav_active_text": "#8A4318",
+    "btn": "rgba(255,255,255,0.55)",
+    "btn_hover": "rgba(255,255,255,0.80)",
+    "btn_border": "rgba(22,30,40,0.14)",
+    "btn_text": "#1B2027",
+    "input": "rgba(255,255,255,0.68)",
+    "grid": "rgba(22,30,40,0.10)",
+    "table_head": "rgba(255,255,255,0.55)",
+    "row_alt": "transparent",
+    "shadow": "none",
+    "container_bg": "rgba(255,255,255,0.46)",
+    "template": "plotly_white",
+    "mode": "glass_light",
+}
+
+
+NAV_ICONS = {
+    "管理工作台": "dashboard",
+    "人员档案管理": "groups",
+    "设备管理": "router",
+    "实时监测": "monitor_heart",
+    "留意": "visibility",
+    "告警中心": "warning",
+    "历史数据": "history",
+    "监测任务": "task_alt",
+    "我的家庭": "home",
+    "家庭成员": "face",
+    "家里的设备": "router",
+    "实时状态": "monitor_heart",
+    "告警提醒": "notifications",
+    "历史记录": "history",
+    "设置": "settings",
+    "系统配置": "tune",
+    "家庭监护首页": "home",
+    "实时监护画面": "monitor_heart",
+    "我的告警": "warning",
+    "历史告警记录": "history",
+    "个人信息": "face",
+}
+
 NAV_ADMIN = [
     ("总览", ["管理工作台"]),
     ("资产", ["人员档案管理", "设备管理"]),
@@ -165,6 +278,23 @@ SEED_DEMO = _env_flag("WIFI_SENSE_SEED_DEMO", "1")
 # 会话状态
 # ============================================================
 
+# 视觉风格单独存进地址栏参数：浏览器刷新（新会话）后据此恢复
+THEME_PARAM = "ws_t"
+
+
+def apply_theme(key, persist=True):
+    """统一的主题写入口：改 session_state，同时把选择写进地址栏。"""
+    if key not in THEMES:
+        return
+    st.session_state.theme = key
+    if not persist:
+        return
+    try:
+        if st.query_params.get(THEME_PARAM) != key:
+            st.query_params[THEME_PARAM] = key
+    except Exception:
+        pass
+
 
 def init_state():
     defaults = {
@@ -173,7 +303,7 @@ def init_state():
         "username": None,
         "person_id": None,
         "page": "管理工作台",
-        "theme": "dark",
+        "theme": "glass",
         "density": "标准",
         "reduce_motion": False,
         "show_confidence": True,
@@ -251,6 +381,13 @@ def init_state():
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+    # 新会话（含浏览器刷新）先从地址栏取回上次选定的风格
+    if not st.session_state.get("_theme_restored"):
+        saved = st.query_params.get(THEME_PARAM)
+        if saved in THEMES:
+            st.session_state.theme = saved
+        st.session_state["_theme_restored"] = True
 
 
 init_state()
@@ -1222,7 +1359,7 @@ def esc(value):
 
 
 def get_palette():
-    return THEMES.get(st.session_state.get("theme", "dark"), THEMES["dark"])
+    return THEMES.get(st.session_state.get("theme", "glass"), THEMES["glass"])
 
 
 CSS_TEMPLATE = """
@@ -1392,8 +1529,7 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     border-color: transparent !important;
 }
 
-section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
-section[data-testid="stSidebar"] button[kind="primary"] {
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] {
     background: @nav_active_bg !important;
     border-color: @nav_active_border !important;
     color: @nav_active_text !important;
@@ -2651,8 +2787,7 @@ section[data-testid="stSidebar"] .side-sep {
 }
 
 /* 选中导航项在 hover 时保持高亮，不被通用 hover 覆盖 */
-section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover,
-section[data-testid="stSidebar"] button[kind="primary"]:hover {
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover {
     background: @nav_active_bg !important;
     border-color: @nav_active_border !important;
     color: @nav_active_text !important;
@@ -2839,13 +2974,660 @@ div[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) p {
 """
 
 
+
+def _glass_css():
+    """玻璃态：照片底 + 磨砂卡片。底图内联成 data URI，避免额外静态路由。"""
+    import base64 as _b
+    mode = get_palette().get("mode")
+    fname = "bg_light.jpg" if mode == "glass_light" else "bg.jpg"
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", fname)
+    try:
+        uri = "data:image/jpeg;base64," + _b.b64encode(open(path, "rb").read()).decode()
+    except Exception:
+        uri = ""
+    body = _GLASS_CSS_BODY
+    if mode == "glass_light":
+        body = body + _GLASS_LIGHT_SKIN
+    body = body + _GLASS_MOTION
+    return body.replace("@@BG@@", uri)
+
+
+_GLASS_MOTION = """
+/* ====== 动效层：Apple 风格（仅玻璃态注入，受「减少动效」统一关闭）====== */
+
+@keyframes gx-rise {
+    from { opacity: 0; transform: translate3d(0, 9px, 0) scale(0.995); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes gx-drop {
+    from { opacity: 0; transform: translate3d(0, -12px, 0); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes gx-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* 卡片：入场轻微上浮，悬停像被手指按住再松开 */
+.mcard, .dcard, .acard, .twrap, [data-testid="stMetric"],
+[data-testid="stVerticalBlockBorderWrapper"] {
+    animation: gx-rise .4s cubic-bezier(.32,.72,0,1) backwards;
+    transition: transform .42s cubic-bezier(.32,.72,0,1),
+                box-shadow .42s cubic-bezier(.32,.72,0,1),
+                border-color .3s ease,
+                background-color .3s ease;
+    will-change: transform;
+}
+.mcard:hover, .dcard:hover, .acard:hover, [data-testid="stMetric"]:hover {
+    transform: translate3d(0, -3px, 0) scale(1.004);
+}
+.mcard:active, .dcard:active, .acard:active {
+    transform: scale(0.997);
+    transition-duration: .16s;
+}
+
+/* 顶部胶囊：从上方落定 */
+.st-key-topbar_shell {
+    animation: gx-drop .48s cubic-bezier(.32,.72,0,1) both;
+}
+
+/* 按钮：按下回弹 */
+[data-testid="stMain"] .stButton > button[kind],
+[data-testid="stMain"] [data-testid="stBaseButton-secondary"],
+[data-testid="stMain"] [data-testid="stBaseButton-primary"],
+[data-testid="stMain"] [data-testid="stBaseButton-secondaryFormSubmit"],
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] .stButton > button[kind] {
+    transition: transform .24s cubic-bezier(.32,.72,0,1),
+                background-color .22s ease,
+                border-color .22s ease,
+                box-shadow .3s ease,
+                color .2s ease !important;
+}
+[data-testid="stMain"] .stButton > button[kind]:hover,
+[data-testid="stMain"] [data-testid="stBaseButton-secondary"]:hover,
+[data-testid="stMain"] [data-testid="stBaseButton-primary"]:hover,
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[kind]:hover {
+    transform: translate3d(0, -1px, 0) scale(1.014) !important;
+}
+[data-testid="stMain"] .stButton > button[kind]:active,
+[data-testid="stMain"] [data-testid="stBaseButton-secondary"]:active,
+[data-testid="stMain"] [data-testid="stBaseButton-primary"]:active,
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[kind]:active {
+    transform: scale(0.963) !important;
+    transition-duration: .09s !important;
+}
+
+/* 左侧 rail：图标按钮没有 .stButton 包装，按 testid 命中 */
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[data-testid^="stBaseButton"] {
+    transition: transform .32s cubic-bezier(.34,1.32,.44,1),
+                background-color .24s ease,
+                box-shadow .3s ease,
+                color .24s ease !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[data-testid="stBaseButton-secondary"]:hover {
+    transform: scale(1.07) !important;
+    transition-duration: .22s !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[data-testid="stBaseButton-primary"]:hover {
+    transform: scale(1.05) !important;
+    transition-duration: .28s !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] button[data-testid^="stBaseButton"]:active {
+    transform: scale(0.93) !important;
+    transition-duration: .1s !important;
+}
+
+/* 图表与表格：淡入，避免 rerun 时整块闪一下 */
+[data-testid="stMain"] .js-plotly-plot,
+[data-testid="stMain"] [data-testid="stDataFrame"],
+[data-testid="stMain"] table.dfmt {
+    animation: gx-in .5s ease both;
+}
+
+/* 输入类控件：聚焦时外发光代替硬描边 */
+[data-testid="stTextInput"] div[data-baseweb="input"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stTextArea"] div[data-baseweb="textarea"] {
+    transition: box-shadow .3s cubic-bezier(.32,.72,0,1), border-color .22s ease;
+}
+[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {
+    box-shadow: 0 0 0 3px rgba(240,138,75,0.18), 0 8px 22px rgba(0,0,0,0.2);
+}
+
+/* 分段控件与开关：状态切换走同一套缓动 */
+[data-testid="stButtonGroup"] button,
+[data-testid="stCheckbox"] > label,
+[data-testid="stToggle"] > label {
+    transition: background-color .26s cubic-bezier(.32,.72,0,1),
+                color .2s ease,
+                border-color .2s ease,
+                transform .26s cubic-bezier(.32,.72,0,1);
+}
+[data-testid="stButtonGroup"] button:active {
+    transform: scale(0.97);
+}
+
+/* 系统级“减弱动效”优先 */
+@media (prefers-reduced-motion: reduce) {
+    .mcard, .dcard, .acard, .twrap, [data-testid="stMetric"],
+    [data-testid="stVerticalBlockBorderWrapper"],
+    .st-key-topbar_shell,
+    [data-testid="stMain"] .js-plotly-plot,
+    [data-testid="stMain"] [data-testid="stDataFrame"] {
+        animation: none !important;
+    }
+}
+"""
+
+_GLASS_CSS_BODY = """
+/* ====== 玻璃态覆盖层（palette mode=glass 时注入）====== */
+html, body { background: #080A0E; }
+[data-testid="stAppViewContainer"] {
+    background-color: #080A0E;
+    background-image:
+        linear-gradient(180deg, rgba(8,10,14,0.55) 0%, rgba(8,10,14,0.78) 55%, rgba(8,10,14,0.92) 100%),
+        radial-gradient(80% 50% at 14% 0%, rgba(255,150,80,0.13), transparent 64%),
+        url("@@BG@@");
+    background-size: cover, cover, cover;
+    background-position: center, center, center;
+    background-attachment: fixed, fixed, fixed;
+    background-repeat: no-repeat;
+}
+[data-testid="stSidebar"] {
+    background: rgba(10,12,16,0.62) !important;
+    backdrop-filter: blur(26px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border-right: 1px solid rgba(255,255,255,0.07);
+}
+[data-testid="stHeader"] {
+    background: rgba(10,12,16,0.28) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+.mcard, .dcard, .acard, .twrap, .login-card,
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stExpander"] details,
+[data-testid="stMetric"] {
+    background: linear-gradient(155deg, rgba(255,255,255,0.105), rgba(255,255,255,0.028)) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 18px !important;
+    backdrop-filter: blur(18px) saturate(155%);
+    -webkit-backdrop-filter: blur(18px) saturate(155%);
+    box-shadow: 0 16px 38px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+    transition: transform .28s cubic-bezier(.2,.7,.3,1), box-shadow .28s ease, border-color .28s ease;
+}
+.mcard:hover, .dcard:hover, .acard:hover, [data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.24) !important;
+    box-shadow: 0 24px 52px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+}
+
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-secondaryFormSubmit"],
+.stButton > button[kind="secondary"] {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.16) !important;
+    color: #EDF1F6 !important;
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border-radius: 12px !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.10);
+    transition: background .22s ease, border-color .22s ease, transform .22s ease;
+}
+[data-testid="stBaseButton-secondary"]:hover,
+[data-testid="stBaseButton-secondaryFormSubmit"]:hover,
+.stButton > button[kind="secondary"]:hover {
+    background: rgba(255,255,255,0.12) !important;
+    border-color: rgba(255,255,255,0.26) !important;
+    transform: translateY(-1px);
+}
+[data-testid="stBaseButton-primary"], .stButton > button[kind="primary"] {
+    background: #F08A4B !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    color: #1A0F08 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 26px rgba(240,138,75,0.28), inset 0 1px 0 rgba(255,255,255,0.28);
+}
+[data-testid="stBaseButton-primary"]:hover, .stButton > button[kind="primary"]:hover {
+    background: #E57936 !important;
+    transform: translateY(-1px);
+}
+
+section[data-testid="stSidebar"] .stButton > button {
+    border-radius: 12px !important;
+}
+
+/* ====== 窄图标栏（参考图的左侧 rail）====== */
+section[data-testid="stSidebar"] {
+    width: 68px !important;
+    min-width: 68px !important;
+    display: flex !important;
+    align-items: center !important;
+    background: transparent !important;
+    border-right: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+[data-testid="stSidebarResizeHandle"] {
+    display: none !important;
+    width: 0 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+    padding: 0 !important;
+    gap: 0 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    background: linear-gradient(168deg, rgba(255,255,255,0.15), rgba(255,255,255,0.055)) !important;
+    border: none;
+    border-radius: 999px;
+    margin: 0 0 0 16px;
+    padding: 16px 0 14px;
+    height: fit-content !important;
+    max-height: calc(100vh - 20px);
+    backdrop-filter: blur(24px) saturate(155%);
+    -webkit-backdrop-filter: blur(24px) saturate(155%);
+    box-shadow: 0 18px 42px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.14);
+    overflow: visible;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {
+    display: none !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    justify-content: center !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button {
+    width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    border-radius: 999px !important;
+    opacity: .55;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button:hover { opacity: 1; }
+
+/* 品牌与头像 */
+.rail-brand {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0 6px;
+}
+.rail-brand .brand-mark {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #F08A4B;
+}
+.rail-avatar {
+    width: 34px; height: 34px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    color: #14181D;
+    background: linear-gradient(160deg, #F7D2B4, #E9A574);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.32);
+}
+.rail-sep {
+    width: 22px; height: 1px;
+    margin: 6px auto 7px;
+    background: rgba(255,255,255,0.16);
+}
+.rail-sep-bottom { margin: 10px auto 4px; }
+.rail-chip {
+    display: none;
+}
+
+/* 图标按钮：42px 圆，文字隐藏，靠 tooltip 说明 */
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] {
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-width: 42px !important;
+    padding: 0 !important;
+    margin: 3px auto !important;
+    border-radius: 999px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    color: rgba(242,245,249,0.72) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover {
+    background: rgba(255,255,255,0.10) !important;
+    border-color: rgba(255,255,255,0.14) !important;
+    color: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] {
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: hidden !important;
+}
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] [data-testid="stMarkdownContainer"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] [data-testid="stMarkdownContainer"] p {
+    margin: 0 !important;
+}
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] [data-testid="stIconMaterial"] {
+    font-size: 21px !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+}
+section[data-testid="stSidebar"] span[data-testid="stTooltipHoverTarget"] {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+/* 当前页：白色实心圆 + 深色图标 */
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] button[kind="primary"] {
+    background: #F6F2EC !important;
+    border: 1px solid rgba(255,255,255,0.9) !important;
+    color: #14181D !important;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover,
+section[data-testid="stSidebar"] button[kind="primary"]:hover {
+    background: #FFFFFF !important;
+    color: #0F1216 !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255,255,255,0.06) !important;
+    border-color: rgba(255,255,255,0.10) !important;
+}
+
+/* 原生控件：下拉、输入框、滑块都改成玻璃片 */
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+[data-testid="stTextInput"] div[data-baseweb="input"],
+[data-testid="stNumberInput"] div[data-baseweb="input"],
+[data-testid="stTextArea"] textarea,
+[data-testid="stDateInput"] div[data-baseweb="input"] {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.16) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover,
+[data-testid="stTextInput"] div[data-baseweb="input"]:hover {
+    border-color: rgba(255,255,255,0.26) !important;
+}
+/* 自定义组件（空间视图 iframe）切成卡片圆角 */
+[data-testid="stIFrame"], [data-testid="stCustomComponentV1"] iframe {
+    border-radius: 18px !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    overflow: hidden !important;
+    box-shadow: 0 16px 38px rgba(0,0,0,0.26);
+}
+
+
+/* ====== 顶部细条（头像 + 信息胶囊 + 刷新圆钮）====== */
+.st-key-topbar_shell {
+    border-radius: 999px !important;
+    background: linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)) !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+    padding: 5px 7px !important;
+    margin-bottom: 2px;
+}
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 6px;
+}
+.tb-avatar {
+    width: 28px; height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    color: #14181D;
+    background: linear-gradient(160deg, #F7D2B4, #E9A574);
+}
+.tb-user { display: flex; flex-direction: column; line-height: 1.25; }
+.tb-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.tb-role { font-size: 10.5px; color: var(--muted); }
+.tb-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: rgba(242,245,249,0.68);
+    font-size: 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+[data-testid="stMain"] button[data-testid="stBaseButton-secondary"] {
+    border-radius: 999px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    font-size: 12px;
+}
+
+/* 顶栏内部元素归零、垂直居中 */
+.st-key-topbar_shell [data-testid="stVerticalBlock"],
+.st-key-topbar_shell [data-testid="stColumn"],
+.st-key-topbar_shell [data-testid="stElementContainer"],
+.st-key-topbar_shell [data-testid="stMarkdown"],
+.st-key-topbar_shell [data-testid="stMarkdownContainer"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    min-height: 0 !important;
+}
+.st-key-topbar_shell [data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+    min-height: 0 !important;
+}
+.st-key-topbar_shell [data-testid="stColumn"] {
+    display: flex !important;
+    align-items: center !important;
+}
+.st-key-topbar_shell button {
+    height: 32px !important;
+    min-height: 32px !important;
+    margin: 0 !important;
+}
+.ph-title { margin-top: 18px; }
+
+[data-testid="stPlotlyChart"] {
+    background: rgba(255,255,255,0.075) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 18px !important;
+    backdrop-filter: blur(18px) saturate(155%);
+    -webkit-backdrop-filter: blur(18px) saturate(155%);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+    overflow: hidden;
+}
+"""
+
+
+_GLASS_LIGHT_SKIN = """
+/* ====== 浅色玻璃：在深色结构之上覆写配色 ====== */
+html, body { background: #EDE8E0; }
+[data-testid="stAppViewContainer"] {
+    background-color: #EDE8E0;
+    background-image:
+        linear-gradient(180deg, rgba(250,247,242,0.44) 0%, rgba(246,242,236,0.62) 55%, rgba(242,238,232,0.78) 100%),
+        radial-gradient(70% 46% at 16% 0%, rgba(255,214,178,0.22), transparent 62%),
+        url("@@BG@@");
+}
+[data-testid="stHeader"] {
+    background: rgba(252,250,246,0.55) !important;
+}
+[data-testid="stSidebar"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-right: none !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    background: linear-gradient(168deg, rgba(255,255,255,0.66), rgba(255,255,255,0.34)) !important;
+    box-shadow: 0 14px 34px rgba(28,36,46,0.14), inset 0 1px 0 rgba(255,255,255,0.85) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover {
+    background: rgba(255,255,255,0.72) !important;
+    border-color: rgba(22,30,40,0.16) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] {
+    background: #C4622A !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 6px 16px rgba(176,80,32,0.30) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"] {
+    color: #FFFFFF !important;
+}
+.st-key-topbar_shell {
+    background: linear-gradient(160deg, rgba(255,255,255,0.70), rgba(255,255,255,0.36)) !important;
+    border: 1px solid rgba(255,255,255,0.70) !important;
+    box-shadow: 0 10px 26px rgba(28,36,46,0.12), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+.tb-pill {
+    background: rgba(255,255,255,0.58);
+    border: 1px solid rgba(22,30,40,0.10);
+    color: rgba(28,36,46,0.66);
+}
+.tb-avatar {
+    background: linear-gradient(160deg, #E7A97C, #C4622A);
+    color: #FFF7F0;
+}
+[data-testid="stMain"] button[data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,0.60) !important;
+    border: 1px solid rgba(22,30,40,0.14) !important;
+    color: #1B2027 !important;
+}
+.mcard, .dcard, .acard, .twrap, .login-card,
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stExpander"] details,
+[data-testid="stMetric"] {
+    background: linear-gradient(155deg, rgba(255,255,255,0.72), rgba(255,255,255,0.42)) !important;
+    border: 1px solid rgba(255,255,255,0.80) !important;
+    box-shadow: 0 0 0 1px rgba(22,30,40,0.06), 0 12px 28px rgba(28,36,46,0.10), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+}
+.mcard:hover, .dcard:hover, .acard:hover, [data-testid="stMetric"]:hover {
+    box-shadow: 0 16px 32px rgba(28,36,46,0.16), inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-secondaryFormSubmit"],
+.stButton > button[kind="secondary"] {
+    background: rgba(255,255,255,0.58) !important;
+    border: 1px solid rgba(22,30,40,0.14) !important;
+    color: #1B2027 !important;
+    box-shadow: 0 6px 16px rgba(28,36,46,0.08) !important;
+}
+[data-testid="stCompare"] { }
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+[data-testid="stTextInput"] div[data-baseweb="input"],
+[data-testid="stNumberInput"] div[data-baseweb="input"],
+[data-testid="stTextArea"] textarea,
+[data-testid="stDateInput"] div[data-baseweb="input"] {
+    background: rgba(255,255,255,0.68) !important;
+    border: 1px solid rgba(22,30,40,0.14) !important;
+    color: #1B2027 !important;
+}
+[data-testid="stPlotlyChart"] {
+    background: linear-gradient(160deg, rgba(255,255,255,0.70), rgba(255,255,255,0.40)) !important;
+    border: 1px solid rgba(255,255,255,0.80) !important;
+    box-shadow: 0 12px 28px rgba(28,36,46,0.10), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+}
+[data-testid="stIFrame"], [data-testid="stCustomComponentV1"] iframe {
+    background: rgba(255,255,255,0.70) !important;
+    box-shadow: 0 12px 28px rgba(28,36,46,0.12) !important;
+}
+
+/* rail：浅色底板上的图标与选中态（放在皮肤最末尾，压过结构层的硬编码白色） */
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] {
+    color: #2A3239 !important;
+    -webkit-text-fill-color: #2A3239 !important;
+}
+section[data-testid="stSidebar"] button[data-testid^="stBaseButton"] [data-testid="stIconMaterial"] {
+    color: #2A3239 !important;
+    -webkit-text-fill-color: #2A3239 !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
+    background: #C4622A !important;
+    border: 1px solid rgba(255,255,255,0.55) !important;
+    box-shadow: 0 10px 24px rgba(148,68,28,0.34) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"] {
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover {
+    background: #B4551F !important;
+    border-color: rgba(255,255,255,0.55) !important;
+    box-shadow: 0 10px 24px rgba(148,68,28,0.38) !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover [data-testid="stIconMaterial"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover [data-testid="stIconMaterial"] {
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+}
+/* 勾选框：白底上要有可见的轨道与滑块 */
+[data-testid="stCheckbox"] > label > div:not([data-testid]) {
+    background: rgba(27, 32, 39, 0.12) !important;
+    border-radius: 999px !important;
+}
+[data-testid="stCheckbox"] > label > div:not([data-testid]) > div {
+    background: #FFFFFF !important;
+    box-shadow: 0 1px 3px rgba(20, 26, 34, 0.22) !important;
+}
+
+.stButton button:disabled,
+.stButton button[disabled] {
+    background: rgba(255,255,255,0.46) !important;
+    border: 1px dashed rgba(22,30,40,0.16) !important;
+    color: rgba(28,36,46,0.52) !important;
+    box-shadow: none !important;
+}
+.st-key-theme_quick button,
+.st-key-theme_quick button [data-testid="stIconMaterial"],
+.st-key-logout_btn button,
+.st-key-logout_btn button [data-testid="stIconMaterial"] {
+    color: #2A3239 !important;
+    -webkit-text-fill-color: #2A3239 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+"""
+
 def inject_css():
     palette = get_palette()
-    palette["hero_bg"] = (
-        "linear-gradient(165deg, #141C26, #0B1016)"
-        if palette["mode"] == "dark"
-        else "linear-gradient(165deg, #FFFFFF, #EDF1F5)"
-    )
+    if palette["mode"] == "glass":
+        palette["hero_bg"] = "linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))"
+    elif palette["mode"] == "glass_light":
+        palette["hero_bg"] = "linear-gradient(160deg, rgba(255,255,255,0.62), rgba(255,255,255,0.28))"
+    elif palette["mode"] == "dark":
+        palette["hero_bg"] = "linear-gradient(165deg, #141C26, #0B1016)"
+    else:
+        palette["hero_bg"] = "linear-gradient(165deg, #FFFFFF, #EDF1F5)"
 
     css = CSS_TEMPLATE
     for key in sorted(palette.keys(), key=len, reverse=True):
@@ -2862,10 +3644,10 @@ def inject_css():
 *, *::before, *::after { transition: none !important; animation: none !important; }
 """
 
+    if palette.get("mode") in ("glass", "glass_light"):
+        css += _glass_css()
+
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-
-
-inject_css()
 
 # ============================================================
 # 图表主题
@@ -3080,6 +3862,7 @@ PERSIST_LOGIN = True
 # 生产部署请用环境变量注入独立密钥，避免沿用内置默认值
 SESSION_SECRET = os.environ.get("WS_SESSION_SECRET", "wifi-sense-local-session-v1")
 SESSION_TTL = 2 * 3600      # 2 小时：凭证在地址栏可见，有效期越短泄露窗口越小
+SESSION_TTL_REMEMBER = 30 * 24 * 3600   # 勾选「记住我」：30 天
 SESSION_PARAM = "ws_s"
 
 
@@ -3089,8 +3872,14 @@ def _session_sign(raw):
     ).hexdigest()[:32]
 
 
-def issue_session(username, role, person_id):
-    body = {"u": username, "r": role, "p": person_id, "ts": int(time.time())}
+def issue_session(username, role, person_id, remember=False):
+    body = {
+        "u": username,
+        "r": role,
+        "p": person_id,
+        "ts": int(time.time()),
+        "rm": 1 if remember else 0,
+    }
     raw = base64.urlsafe_b64encode(
         json.dumps(body, ensure_ascii=False).encode("utf-8")
     ).decode("ascii")
@@ -3107,7 +3896,8 @@ def parse_session(token):
         body = json.loads(base64.urlsafe_b64decode(raw.encode("ascii")).decode("utf-8"))
     except Exception:
         return None
-    if int(body.get("ts") or 0) + SESSION_TTL < int(time.time()):
+    ttl = SESSION_TTL_REMEMBER if body.get("rm") else SESSION_TTL
+    if int(body.get("ts") or 0) + ttl < int(time.time()):
         return None
     if not body.get("u"):
         return None
@@ -3121,6 +3911,7 @@ def persist_session():
         st.session_state.get("username"),
         st.session_state.get("role"),
         st.session_state.get("person_id"),
+        bool(st.session_state.get("remember_login")),
     )
     try:
         if st.query_params.get(SESSION_PARAM) != token:
@@ -3157,7 +3948,7 @@ def restore_session():
     return True
 
 
-def login(username, password):
+def login(username, password, remember=False):
     try:
         user = source().authenticate(username, password)
     except DataSourceError as exc:
@@ -3172,6 +3963,7 @@ def login(username, password):
     st.session_state.role = user["role"]
     st.session_state.person_id = user["person_id"]
     st.session_state.page = "管理工作台" if user["role"] == "管理员" else "家庭监护首页"
+    st.session_state.remember_login = bool(remember)
     st.session_state.boot_anim = True
     persist_session()
 
@@ -3892,7 +4684,13 @@ def space_view(rooms, updated_at, height=340):
     st.iframe(html, height=height)
 
 
-def page_header(title, subtitle, crumb, refresh_key="refresh_top"):
+
+def _rail_style():
+    """只有玻璃态两套用图标 rail + 顶部胶囊；经典主题走原版布局。"""
+    return get_palette().get("mode") in ("glass", "glass_light")
+
+
+def _page_header_classic(title, subtitle, crumb, refresh_key="refresh_top"):
     left, right = st.columns([4.6, 1], gap="medium", vertical_alignment="bottom")
 
     with left:
@@ -3909,6 +4707,53 @@ def page_header(title, subtitle, crumb, refresh_key="refresh_top"):
             unsafe_allow_html=True,
         )
         clicked = st.button("刷新数据", key=refresh_key, width="stretch")
+
+    st.markdown(
+        '<div class="demo-line"><span class="tag-muted">模拟数据</span>'
+        "演示环境，未连接真实 ESP32 设备；页面中的状态与告警仅用于功能演示。</div>",
+        unsafe_allow_html=True,
+    )
+
+    return clicked
+
+
+def page_header(title, subtitle, crumb, refresh_key="refresh_top"):
+    if not _rail_style():
+        return _page_header_classic(title, subtitle, crumb, refresh_key)
+
+    who = esc(st.session_state.get("username") or "访客")
+    role = esc(st.session_state.get("role") or "访客")
+    initial = (who or "?")[:1].upper()
+
+    with st.container(border=True, key="topbar_shell"):
+        bar_left, bar_mid, bar_right = st.columns([2.5, 4.2, 1.25], gap="small", vertical_alignment="center")
+
+        with bar_left:
+            st.markdown(
+                '<div class="topbar">'
+                f'<div class="tb-avatar">{initial}</div>'
+                f'<div class="tb-user"><span class="tb-name">Welcome, {who}</span>'
+                f'<span class="tb-role">{role} · DEMO</span></div>'
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        with bar_mid:
+            st.markdown(f'<div class="tb-pill">{esc(crumb)}</div>', unsafe_allow_html=True)
+
+        with bar_right:
+            clicked = st.button(
+                "刷新数据",
+                key=refresh_key,
+                icon=":material/refresh:",
+                width="stretch",
+            )
+
+    st.markdown(
+        f'<div class="ph-title">{esc(title)}</div>'
+        f'<div class="ph-sub">{esc(subtitle)}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         '<div class="demo-line"><span class="tag-muted">模拟数据</span>'
@@ -3952,10 +4797,14 @@ def device_by_id(dev_id):
 
 
 def sync_theme_toggle(light_on):
-    new_theme = "light" if light_on else "dark"
+    cur = st.session_state.get("theme", "glass")
+    if cur in ("glass", "glass_light"):
+        new_theme = "glass_light" if light_on else "glass"
+    else:
+        new_theme = "light" if light_on else "dark"
 
     if new_theme != st.session_state.theme:
-        st.session_state.theme = new_theme
+        apply_theme(new_theme)
         st.rerun()
 
 
@@ -4128,10 +4977,16 @@ def render_login():
             with st.form("login_form"):
                 username = st.text_input("账号", placeholder="请输入账号")
                 password = st.text_input("密码", type="password", placeholder="请输入登录密码")
+                remember = st.checkbox(
+                    "记住我（30 天免登录）",
+                    value=False,
+                    key="remember_checkbox",
+                    help="勾选后本机 30 天内打开同一链接仍保持登录；不勾选凭证只有 2 小时有效期",
+                )
                 submitted = st.form_submit_button("登录平台", type="primary", width="stretch")
 
                 if submitted:
-                    if login(username.strip(), password):
+                    if login(username.strip(), password, remember):
                         st.rerun()
                     elif st.session_state.get("api_error"):
                         st.error(f"登录接口不可用：{st.session_state.api_error}")
@@ -4140,7 +4995,7 @@ def render_login():
 
             st.markdown(
                 '<div class="login-note"><span class="hf-dot"></span>'
-                '登录状态保留 2 小时，刷新页面不会退出</div>',
+                '默认 2 小时、刷新不掉线；勾选「记住我」后 30 天内免登录</div>',
                 unsafe_allow_html=True,
             )
 
@@ -4164,7 +5019,7 @@ def render_login():
 
             light = st.toggle(
                 "浅色主题",
-                value=st.session_state.theme == "light",
+                value=st.session_state.get("theme") in ("light", "glass_light"),
                 key="theme_toggle_login",
             )
             sync_theme_toggle(light)
@@ -4185,7 +5040,7 @@ def resolve_page(is_admin):
     return st.session_state.page
 
 
-def render_sidebar(is_admin):
+def _render_sidebar_classic(is_admin):
     role_text = "管理员" if is_admin else "家属"
 
     with st.sidebar:
@@ -4221,13 +5076,13 @@ def render_sidebar(is_admin):
 
         st.markdown('<div class="side-sep"></div>', unsafe_allow_html=True)
 
-        light = st.session_state.theme == "light"
+        light = st.session_state.get("theme") in ("light", "glass_light")
         if st.button(
             "☾  切换到深色" if light else "☀  切换到浅色",
             key="theme_quick",
             width="stretch",
         ):
-            st.session_state.theme = "dark" if light else "light"
+            apply_theme("light" if not light else "dark")
             st.rerun()
 
         st.markdown(
@@ -4236,6 +5091,63 @@ def render_sidebar(is_admin):
         )
 
         if st.button("退出登录", key="logout_btn", width="stretch"):
+            logout()
+
+
+def render_sidebar(is_admin):
+    if not _rail_style():
+        return _render_sidebar_classic(is_admin)
+
+    role_text = "管理员" if is_admin else "家属"
+    who = esc(st.session_state.username)
+    initial = (who or "?")[:1].upper()
+
+    with st.sidebar:
+        groups = NAV_ADMIN if is_admin else NAV_FAMILY
+        current = st.session_state.page
+
+        for gi, (group_name, items) in enumerate(groups):
+            for label in items:
+                active = label == current
+                clicked = st.button(
+                    label,
+                    key="nav_" + label,
+                    type="primary" if active else "secondary",
+                    icon=":material/%s:" % NAV_ICONS.get(label, "circle"),
+                    help=label,
+                    width="stretch",
+                )
+                if clicked and not active:
+                    st.session_state.page = label
+                    st.rerun()
+
+        st.markdown(
+            f'<div class="rail-chip">{esc(current)}</div>',
+            unsafe_allow_html=True,
+        )
+
+        light = st.session_state.get("theme") in ("light", "glass_light")
+        if st.button(
+            "切换主题",
+            key="theme_quick",
+            icon=":material/light_mode:" if light else ":material/dark_mode:",
+            help="在深色玻璃与浅色玻璃之间切换",
+            width="stretch",
+        ):
+            cur = st.session_state.get("theme", "glass")
+            if cur in ("glass", "glass_light"):
+                apply_theme("glass" if light else "glass_light")
+            else:
+                apply_theme("dark" if light else "light")
+            st.rerun()
+
+        if st.button(
+            "退出登录",
+            key="logout_btn",
+            icon=":material/logout:",
+            help="退出登录",
+            width="stretch",
+        ):
             logout()
 
 
@@ -6306,6 +7218,186 @@ def page_ai():
 # ============================================================
 
 
+
+STYLE_OPTIONS = [
+    ("glass", "深色玻璃", "暖光照片底，磨砂玻璃卡片，橙色强调"),
+    ("glass_light", "浅色玻璃", "浅木日光底，白玻璃卡片，砖橙强调"),
+    ("dark", "经典深色", "纯色深底，扁平卡片，冷蓝强调"),
+    ("light", "经典浅色", "纯色浅底，扁平卡片，冷蓝强调"),
+]
+
+_STYLE_TOKENS = {
+    "glass": dict(bg="radial-gradient(72% 62% at 17% 10%, rgba(255,178,102,0.30), transparent 62%),"
+                     "radial-gradient(66% 58% at 84% 86%, rgba(126,88,58,0.34), transparent 66%),"
+                     "linear-gradient(150deg,#3A2D22,#0B0D11)", rail="rgba(255,255,255,0.16)",
+                  card="rgba(255,255,255,0.12)", bar="rgba(255,255,255,0.10)",
+                  accent="#F08A4B", text="#F2F5F9", border="rgba(255,255,255,0.22)"),
+    "glass_light": dict(bg="radial-gradient(62% 54% at 20% 12%, rgba(255,242,219,0.95), transparent 64%),"
+                           "radial-gradient(58% 56% at 82% 74%, rgba(140,166,116,0.34), transparent 68%),"
+                           "linear-gradient(150deg,#F8F4EB,#E1D6C5)", rail="rgba(255,255,255,0.72)",
+                        card="rgba(255,255,255,0.78)", bar="rgba(255,255,255,0.66)",
+                        accent="#C4622A", text="#1B2027", border="rgba(255,255,255,0.9)"),
+    "dark": dict(bg="#0C1117", rail="#151C25", card="#151C25", bar="#1B242E",
+                 accent="#5B9ED1", text="#E5EAF1", border="#27313C"),
+    "light": dict(bg="#F4F6F8", rail="#FFFFFF", card="#FFFFFF", bar="#FFFFFF",
+                  accent="#3C7BA8", text="#26313C", border="#DCE3EA"),
+}
+
+
+def style_preview(key, active=False):
+    t = _STYLE_TOKENS[key]
+    ring = ("box-shadow:0 0 0 2px %s inset;" % t["accent"]) if active else ""
+    classic = key in ("dark", "light")
+
+    if classic:
+        side_bars = "".join(
+            '<span style="background:%s;opacity:%s;width:%s"></span>' % (t["text"], o, w)
+            for o, w in ((".85", "78%"), (".62", "64%"), (".45", "72%"), (".32", "55%"))
+        )
+        body = (
+            '<div class="sw-side" style="background:' + t["rail"] + '">' + side_bars + "</div>"
+            '<div class="sw-body">'
+            '<div class="sw-bar" style="background:' + t["bar"] + ";border:1px solid " + t["border"] + '"></div>'
+            '<div class="sw-card" style="background:' + t["card"] + ";border:1px solid " + t["border"] + '">'
+            '<span style="background:' + t["accent"] + ';width:46%"></span>'
+            '<span style="background:' + t["text"] + ';opacity:.55;width:78%"></span>'
+            '<span style="background:' + t["text"] + ';opacity:.25;width:60%"></span>'
+            "</div></div>"
+        )
+    else:
+        dot_html = "".join(
+            '<i style="background:%s;opacity:%s"></i>' % (c, o)
+            for c, o in ((t["accent"], "1"), (t["text"], ".7"), (t["text"], ".45"), (t["text"], ".3"))
+        )
+        body = (
+            '<div class="sw-rail" style="background:' + t["rail"] + '">' + dot_html + "</div>"
+            '<div class="sw-body">'
+            '<div class="sw-bar" style="background:' + t["bar"] + ";border:1px solid " + t["border"] + '"></div>'
+            '<div class="sw-card" style="background:' + t["card"] + ";border:1px solid " + t["border"] + '">'
+            '<span style="background:' + t["accent"] + '"></span>'
+            '<span style="background:' + t["text"] + ';opacity:.55"></span>'
+            '<span style="background:' + t["text"] + ';opacity:.25"></span>'
+            "</div>"
+            '<div class="sw-card sm" style="background:' + t["card"] + ";border:1px solid " + t["border"] + '"></div>'
+            "</div>"
+        )
+
+    return (
+        '<div class="sw-prev" style="background:' + t["bg"] + ";border-color:" + t["border"] + ";" + ring + '">'
+        + body +
+        "</div>"
+    )
+
+
+_STYLE_PICKER_CSS = """
+<style>
+.sw-prev {
+    display: flex;
+    gap: 7px;
+    padding: 9px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    height: 104px;
+    box-sizing: border-box;
+}
+.sw-rail {
+    width: 16px;
+    border-radius: 999px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 0;
+    flex: 0 0 16px;
+}
+.sw-rail i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.sw-body { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sw-bar { height: 12px; border-radius: 999px; }
+.sw-card {
+    flex: 1;
+    border-radius: 8px;
+    padding: 7px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    justify-content: center;
+}
+.sw-card span { display: block; height: 5px; border-radius: 3px; }
+.sw-card span:first-child { width: 46%; }
+.sw-card span:nth-child(2) { width: 78%; }
+.sw-card span:nth-child(3) { width: 60%; }
+.sw-card.sm { flex: 0 0 24px; padding: 0; }
+.sw-side {
+    flex: 0 0 34%;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px 8px;
+    justify-content: center;
+}
+.sw-side span { display: block; height: 5px; border-radius: 3px; }
+.sw-name { font-size: 13px; font-weight: 600; color: var(--text); margin: 8px 0 1px; }
+.sw-head { display: flex; align-items: center; gap: 8px; }
+.sw-badge {
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 8px 4px;
+    border-radius: 999px;
+    color: var(--accent);
+    background: rgba(240,138,75,0.14);
+    border: 1px solid rgba(240,138,75,0.34);
+    white-space: nowrap;
+    margin-top: 7px;
+}
+.sw-desc { font-size: 11.5px; color: var(--muted); min-height: 30px; }
+
+/* 整张卡可点：容器定位，按钮铺满并透明 */
+[class*="st-key-stylecard_"] {
+    position: relative;
+    padding: 10px 10px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform .38s cubic-bezier(.32,.72,0,1),
+                box-shadow .38s cubic-bezier(.32,.72,0,1);
+}
+[class*="st-key-stylecard_"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(0,0,0,0.18);
+}
+[class*="st-key-stylecard_"] [data-testid="stButton"] button {
+    position: absolute;
+    inset: 0;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    opacity: 0;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+[class*="st-key-stylecard_"] [data-testid="stButton"] {
+    position: absolute;
+    inset: 0;
+    margin: 0 !important;
+}
+/* Streamlit 的元素容器自带 position:relative 且高度被绝对子元素压成 0，
+   必须让位给卡片容器，否则透明按钮铺不满整卡 */
+[class*="st-key-stylecard_"] [data-testid="stElementContainer"] {
+    position: static !important;
+    margin: 0 !important;
+}
+[class*="st-key-stylecard_"] .stButton > button:focus-visible {
+    opacity: 1;
+    background: rgba(240,138,75,0.10) !important;
+    border: 1px solid rgba(240,138,75,0.55) !important;
+}
+[class*="st-key-stylecard_"] [data-testid="stElementContainer"]:has(.stButton) { margin: 0 !important; }
+</style>
+"""
+
+
 def page_prefs():
     family = st.session_state.role != "管理员"
     if page_header(
@@ -6319,17 +7411,34 @@ def page_prefs():
         refresh_data()
         st.rerun()
 
-    section_title("外观", "只影响当前账号看到的界面")
-    theme_now = "浅色" if st.session_state.theme == "light" else "深色"
-    pick_theme = st.segmented_control(
-        "主题",
-        ["深色", "浅色"],
-        default=theme_now,
-        key="pref_theme",
-    ) or theme_now
-    if (pick_theme == "浅色") != (st.session_state.theme == "light"):
-        st.session_state.theme = "light" if pick_theme == "浅色" else "dark"
-        st.rerun()
+    section_title("视觉风格", "同一套界面，四种底色；点任意一张卡片即可切换")
+    st.markdown(_STYLE_PICKER_CSS, unsafe_allow_html=True)
+    current_style = st.session_state.get("theme", "glass")
+    for row_start in (0, 2):
+        cols = st.columns(2, gap="medium")
+        for offset, col in enumerate(cols):
+            item = STYLE_OPTIONS[row_start + offset]
+            key, name, desc = item
+            with col:
+                with st.container(key="stylecard_" + key):
+                    badge = '<span class="sw-badge">使用中</span>' if key == current_style else ""
+                    st.markdown(
+                        style_preview(key, key == current_style)
+                        + '<div class="sw-head"><span class="sw-name">' + name + "</span>"
+                        + badge
+                        + "</div>"
+                        + '<div class="sw-desc">' + desc + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if key != current_style:
+                        # 透明按钮铺满整张卡：整卡可点，只保留可达名称
+                        if st.button(
+                            "切换到" + name,
+                            key="style_set_" + key,
+                            width="stretch",
+                        ):
+                            apply_theme(key)
+                            st.rerun()
 
     density_now = st.session_state.get("density", "标准")
     st.segmented_control(
@@ -6398,8 +7507,8 @@ def page_prefs():
     st.caption(f"后端地址：{base}　·　偏好仅保存在当前会话，刷新页面后恢复默认；持久化需要后端偏好接口。")
     if PERSIST_LOGIN:
         st.caption(
-            f"登录状态：刷新页面会保持登录（凭证有效期 {SESSION_TTL // 3600} 小时）。"
-            "凭证位于当前地址栏，请勿把带参数的链接转发给他人；退出登录会立即清除。"
+            f"登录状态：默认 {SESSION_TTL // 3600} 小时、勾选「记住我」后 "
+            f"{SESSION_TTL_REMEMBER // 86400} 天；凭证位于当前地址栏，请勿把带参数的链接转发给他人；退出登录会立即清除。"
         )
 
     df = st.session_state.demo_df
@@ -6509,6 +7618,19 @@ def render_footer():
     with right:
         st.caption(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+
+# 主题已从地址栏恢复，此刻再注入 CSS，避免刷新后先亮一帧默认深色玻璃
+inject_css()
+
+# 把当前风格补写回地址栏（切换时的那次写入会被紧随的 st.rerun() 抢断，
+# 所以统一在本轮开头对齐一次；值相同时不写，避免多余 rerun）
+try:
+    _saved_theme = st.query_params.get(THEME_PARAM)
+    _cur_theme = st.session_state.get("theme")
+    if _cur_theme in THEMES and _saved_theme != _cur_theme:
+        st.query_params[THEME_PARAM] = _cur_theme
+except Exception:
+    pass
 
 if restore_session() and not DEMO_MODE:
     # 刷新回来等同于“刷新即更新”：重新拉一次全量数据
