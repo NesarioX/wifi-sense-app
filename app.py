@@ -1,5 +1,5 @@
 """
-Wi-Fi Sense V0.9.1
+Wi-Fi Sense V0.9.2
 ================
 基于 Streamlit 的 Wi-Fi 感知智能监测与家庭监护平台（应用层）。
 
