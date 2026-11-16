@@ -496,6 +496,10 @@ class BaseDataSource:
     def alerts(self, person=None):
         raise NotImplementedError
 
+    def alerts_page(self, limit=200, status=None, room=None):
+        """轻量取告警（供局部轮询用）：只打告警接口，不触发全量 hydrate。"""
+        raise NotImplementedError
+
     def pending_alerts(self, person=None):
         raise NotImplementedError
 
@@ -604,6 +608,14 @@ class DemoDataSource(BaseDataSource):
         if person:
             items = [a for a in items if a["room"] == person["room"]]
         return items
+
+    def alerts_page(self, limit=200, status=None, room=None):
+        items = self.alerts()
+        if status:
+            items = [a for a in items if a.get("status") == status]
+        if room:
+            items = [a for a in items if a.get("room") == room]
+        return items[:limit]
 
     def pending_alerts(self, person=None):
         return [a for a in self.alerts(person) if a["status"] == "待处理"]
@@ -922,6 +934,15 @@ class HttpDataSource(BaseDataSource):
             "GET", "/api/v1/alerts",
             query={"room": person["room"] if person else None, "limit": 50},
             cache=True,
+        ) or []
+        return [self._map_alert(row) for row in rows]
+
+    def alerts_page(self, limit=200, status=None, room=None):
+        """轮询入口：cache=False 取最新，只打 /api/v1/alerts，失败抛 DataSourceError 由调用方兜底。"""
+        rows = self._request(
+            "GET", "/api/v1/alerts",
+            query={"status": status, "room": room, "limit": limit},
+            cache=False,
         ) or []
         return [self._map_alert(row) for row in rows]
 
@@ -3834,6 +3855,57 @@ def refresh_data():
 # 告警系统
 # ============================================================
 
+# 告警区的局部轮询：只打 /api/v1/alerts 一个接口，不做全量 hydrate。
+# WIFI_SENSE_ALERT_POLL 设 0 可整体关闭；默认 30 秒。
+ALERT_POLL_SECONDS = float(os.environ.get("WIFI_SENSE_ALERT_POLL", "30"))
+ALERT_FETCH_LIMIT = int(os.environ.get("WIFI_SENSE_ALERT_LIMIT", "200"))
+ALERTS_PAGE_SIZE = int(os.environ.get("WIFI_SENSE_ALERTS_PAGE_SIZE", "20"))
+
+
+def _alert_poll_every():
+    return f"{int(ALERT_POLL_SECONDS)}s" if ALERT_POLL_SECONDS > 0 else None
+
+
+def fetch_alerts_quiet(limit=ALERT_FETCH_LIMIT, status=None, room=None):
+    """轮询用取数：失败不往页面顶部抛错误，返回 None 并保留上一次数据。
+
+    失败信息记在 session 里，由告警块自己在角落写一行小字，避免每 30 秒刷屏报错。
+    """
+    try:
+        items = source().alerts_page(limit=limit, status=status, room=room)
+    except DataSourceError as exc:
+        st.session_state.alert_poll_error = str(exc)
+        return None
+    st.session_state.alert_poll_error = ""
+    st.session_state.alert_poll_at = now_local()
+    return items
+
+
+def alert_rows(alerts, status=None, level=None, room=None, page=1, page_size=ALERTS_PAGE_SIZE):
+    """纯函数：筛选 + 分页。
+
+    返回 (当前页记录, 筛选后的全部记录, 总数, 总页数, 修正后的页码)。
+    分页只影响渲染，导出与计数都用筛选后的全部，避免“只导出一页”。
+    """
+    if status and status != "全部状态":
+        alerts = [a for a in alerts if a.get("status") == status]
+    if level and level != "全部级别":
+        alerts = [a for a in alerts if a.get("level") == level]
+    if room and room != "全部区域":
+        alerts = [a for a in alerts if a.get("room") == room]
+    total = len(alerts)
+    pages = max(1, math.ceil(total / page_size)) if total else 1
+    page = max(1, min(int(page or 1), pages))
+    start = (page - 1) * page_size
+    return alerts[start:start + page_size], alerts, total, pages, page
+
+
+def alert_fetch_note(shown, total, limit):
+    """列表下方的“数据到哪来的、覆盖多少”说明，轮询与截断都要可解释。"""
+    if total >= limit:
+        return f"仅取最近 {limit} 条，更早的记录请用筛选或到后端分页查询。"
+    return ""
+
 
 def create_alert(level, category, message, room=None):
     return source().create_alert(level, category, message, room=room)
@@ -5148,6 +5220,44 @@ def render_sidebar(is_admin):
 # ============================================================
 
 
+@st.fragment(run_every=_alert_poll_every())
+def dashboard_alerts_live(preview=4):
+    """工作台最新告警：每 30 秒局部刷新，只拉告警接口，不重绘整页。"""
+    fetched = fetch_alerts_quiet()
+    alerts = fetched if fetched is not None else (st.session_state.get("alerts") or [])
+    poll_error = st.session_state.get("alert_poll_error") or ""
+    updated_at = st.session_state.get("alert_poll_at")
+
+    meta = f"共 {len(alerts)} 条记录"
+    if updated_at and not poll_error:
+        meta += f" · 更新于 {updated_at.strftime('%H:%M:%S')}"
+    section_title("最新告警", meta)
+
+    if alerts:
+        items = []
+        for alert in alerts[:preview]:
+            items.append(
+                (
+                    alert["category"],
+                    f'{alert["time"].strftime("%Y-%m-%d %H:%M")} · {alert["room"]} · {alert["status"]}',
+                    state_badge(alert["level"]),
+                )
+            )
+        st.markdown(mini_rows(items), unsafe_allow_html=True)
+        if len(alerts) > preview:
+            if st.button(f"查看全部 {len(alerts)} 条", key="dash_all_alerts", width="stretch"):
+                st.session_state.page = "告警中心"
+                st.rerun(scope="app")
+    else:
+        empty_state(
+            "目前没有告警记录",
+            "可在「告警中心」生成 DEMO 模拟告警。" if DEMO_MODE else "设备上报异常后会自动出现在这里。",
+        )
+
+    if poll_error:
+        st.caption(f"自动刷新失败（{poll_error}），当前展示上一次成功获取的数据。")
+
+
 def page_dashboard():
     if page_header(
         "管理工作台",
@@ -5205,24 +5315,7 @@ def page_dashboard():
     lower_left, lower_right = st.columns([1.35, 1], gap="large")
 
     with lower_left:
-        section_title("最新告警", f"共 {len(alerts)} 条记录")
-
-        if alerts:
-            items = []
-            for alert in alerts[:4]:
-                items.append(
-                    (
-                        alert["category"],
-                        f'{alert["time"].strftime("%Y-%m-%d %H:%M")} · {alert["room"]} · {alert["status"]}',
-                        state_badge(alert["level"]),
-                    )
-                )
-            st.markdown(mini_rows(items), unsafe_allow_html=True)
-        else:
-            empty_state(
-                "目前没有告警记录",
-                "可在「告警中心」生成 DEMO 模拟告警。" if DEMO_MODE else "设备上报异常后会自动出现在这里。",
-            )
+        dashboard_alerts_live()
 
     with lower_right:
         section_title("设备运行状态", f"在线 {online} / {len(devices)}")
@@ -5847,52 +5940,112 @@ def page_alerts():
                         st.rerun()
 
 
-    section_title("告警列表", f"共 {len(alerts)} 条，按时间倒序")
+    alerts_live_block()
 
-    if not alerts:
-        empty_state(
-            "暂无告警记录",
-            "点击上方按钮生成一条 DEMO 模拟告警。"
-            if DEMO_MODE
-            else "设备上报异常后会自动出现在这里。",
-        )
-        return
 
-    for alert in alerts:
-        with st.container(border=True):
-            col_a, col_b = st.columns([4, 1.2], gap="large", vertical_alignment="center")
+@st.fragment(run_every=_alert_poll_every())
+def alerts_live_block(page_size=ALERTS_PAGE_SIZE):
+    """告警列表：筛选 + 分页 + 30 秒局部轮询。只渲染当前页，避免几百张卡片拖慢页面。"""
+    fetched = fetch_alerts_quiet()
+    alerts = fetched if fetched is not None else (st.session_state.get("alerts") or [])
+    poll_error = st.session_state.get("alert_poll_error") or ""
+    updated_at = st.session_state.get("alert_poll_at")
 
-            with col_a:
+    rooms = set(st.session_state.areas) | {a["room"] for a in alerts if a.get("room")}
+    room_options = ["全部区域"] + sorted(r for r in rooms if r)
+    if st.session_state.get("alert_f_room") not in room_options:
+        st.session_state.alert_f_room = room_options[0]
+
+    f1, f2, f3 = st.columns([1, 1, 1], gap="medium")
+    with f1:
+        status_f = st.selectbox("状态", ["全部状态", "待处理", "已确认"], key="alert_f_status")
+    with f2:
+        level_f = st.selectbox("级别", ["全部级别", "严重", "关注", "提示"], key="alert_f_level")
+    with f3:
+        room_f = st.selectbox("区域", room_options, key="alert_f_room")
+
+    # 筛选变了就回到第一页；页码本身用普通 session 变量存，避免去改已实例化的 widget key
+    sig = (status_f, level_f, room_f)
+    if st.session_state.get("alert_filter_sig") != sig:
+        st.session_state.alert_filter_sig = sig
+        st.session_state.alert_page_idx = 1
+
+    shown, filtered, total, pages, page_no = alert_rows(
+        alerts, status_f, level_f, room_f,
+        int(st.session_state.get("alert_page_idx") or 1), page_size,
+    )
+
+    meta = f"共 {total} 条，按时间倒序"
+    if pages > 1:
+        meta += f" · 第 {page_no} / {pages} 页"
+    if updated_at and not poll_error:
+        meta += f" · 更新于 {updated_at.strftime('%H:%M:%S')}"
+    if fetched is not None and len(fetched) >= ALERT_FETCH_LIMIT:
+        meta += f" · 仅取最近 {ALERT_FETCH_LIMIT} 条"
+    section_title("告警列表", meta)
+
+    if poll_error:
+        st.caption(f"自动刷新失败（{poll_error}），当前展示上一次成功获取的数据。")
+
+    if not total:
+        if alerts:
+            empty_state("当前筛选下没有告警", "把状态或区域放宽到「全部」再试。")
+        else:
+            empty_state(
+                "暂无告警记录",
+                "点击上方按钮生成一条 DEMO 模拟告警。"
+                if DEMO_MODE
+                else "设备上报异常后会自动出现在这里。",
+            )
+    else:
+        for alert in shown:
+            with st.container(border=True):
+                col_a, col_b = st.columns([4, 1.2], gap="large", vertical_alignment="center")
+
+                with col_a:
+                    st.markdown(
+                        f'<div class="acard-head">{state_badge(alert["level"])}'
+                        f'<span class="acard-cat">{esc(alert["category"])}</span>'
+                        f'{data_mode_badge()}</div>'
+                        f'<div class="acard-msg">{esc(alert["message"])}</div>'
+                        f'<div class="acard-meta">{alert["time"].strftime("%Y-%m-%d %H:%M:%S")} · {esc(alert["room"])} · {alert["id"]}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                with col_b:
+                    st.markdown(
+                        f'<div style="text-align:center;margin-bottom:8px">{alert_badge(alert["status"])}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    if alert["status"] == "待处理":
+                        if st.button("确认告警", key="ack_" + str(alert["id"]), width="stretch"):
+                            try:
+                                acknowledge_alert(alert["id"])
+                            except DataSourceError as exc:
+                                st.error(f"确认失败：{exc}")
+                            else:
+                                st.rerun(scope="app")
+
+        if pages > 1:
+            p1, p2, p3 = st.columns([1, 2, 1], gap="small", vertical_alignment="center")
+            with p1:
+                if st.button("上一页", key="alert_prev", disabled=page_no <= 1, width="stretch"):
+                    st.session_state.alert_page_idx = page_no - 1
+                    st.rerun(scope="app")
+            with p2:
                 st.markdown(
-                    f'<div class="acard-head">{state_badge(alert["level"])}'
-                    f'<span class="acard-cat">{esc(alert["category"])}</span>'
-                    f'{data_mode_badge()}</div>'
-                    f'<div class="acard-msg">{esc(alert["message"])}</div>'
-                    f'<div class="acard-meta">{alert["time"].strftime("%Y-%m-%d %H:%M:%S")} · {esc(alert["room"])} · {alert["id"]}</div>',
+                    f'<div style="text-align:center;font-size:12px;opacity:.65;padding-top:6px">'
+                    f"第 {page_no} / {pages} 页</div>",
                     unsafe_allow_html=True,
                 )
-
-            with col_b:
-                st.markdown(
-                    f'<div style="text-align:center;margin-bottom:8px">{alert_badge(alert["status"])}</div>',
-                    unsafe_allow_html=True,
-                )
-                if alert["status"] == "待处理":
-                    if st.button(
-                        "确认告警",
-                        key="ack_" + alert["id"],
-                        width="stretch",
-                    ):
-                        try:
-                            acknowledge_alert(alert["id"])
-                        except DataSourceError as exc:
-                            st.error(f"确认失败：{exc}")
-                        else:
-                            st.rerun()
+            with p3:
+                if st.button("下一页", key="alert_next", disabled=page_no >= pages, width="stretch"):
+                    st.session_state.alert_page_idx = page_no + 1
+                    st.rerun(scope="app")
 
     st.download_button(
-        "导出告警记录（CSV）",
-        pd.DataFrame(alerts).to_csv(index=False).encode("utf-8-sig"),
+        f"导出告警记录（CSV，{len(filtered)} 条）",
+        pd.DataFrame(filtered).to_csv(index=False).encode("utf-8-sig") if filtered else b"",
         "wifi_sense_alerts.csv",
         "text/csv",
         width="stretch",
