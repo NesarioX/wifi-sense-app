@@ -6,11 +6,11 @@ A single-file Streamlit application layer for Wi-Fi CSI based home monitoring: d
 
 > 当前为 **DEMO** 版本：全部数据为模拟数据，未连接真实 ESP32 设备与感知算法。接口契约已备好，填入 `WIFI_SENSE_API_BASE` 即切换到真实后端。
 
-![深色玻璃主题](https://aka.doubaocdn.com/s/yK2vqfGHrY)
+![深色玻璃主题](docs/screenshots/theme-dark.jpg)
 
 *深色玻璃（`glass`，默认）：暖光虚化底图 + 磨砂卡片*
 
-![浅色玻璃主题](https://aka.doubaocdn.com/s/bUQS9BrGOV)
+![浅色玻璃主题](docs/screenshots/theme-light.jpg)
 
 *浅色玻璃（`glass_light`）：浅木日光底图 + 白玻璃卡片*
 
