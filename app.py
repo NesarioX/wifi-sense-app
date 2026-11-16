@@ -31,7 +31,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-APP_VERSION = "0.9.2"
+APP_VERSION = "0.9.3"
 
 # 显示层统一按 Asia/Shanghai：容器时区（公网 UTC / 内网 Pod）都不影响界面时间
 _TZ = ZoneInfo("Asia/Shanghai")
@@ -321,7 +321,10 @@ def init_state():
         "show_confidence": True,
         "show_device_detail": True,
         "auto_brief": True,
+        "show_skeleton": True,
         "alerts": [],
+        "space_cameras": [],
+        "space_poses": {},
         # 演示档案仅在 SEED_DEMO=1 时预置；接入后端后置 0，列表交给 GET /persons
         "persons": [
             {
@@ -500,6 +503,21 @@ class BaseDataSource:
         """轻量取告警（供局部轮询用）：只打告警接口，不触发全量 hydrate。"""
         raise NotImplementedError
 
+    def cameras(self):
+        """摄像头清单：[{id, room, name, status, fps, pose, stream, last_seen}]。
+
+        pose=True 表示该路上报骨骼关键点（不传原始画面）；stream=True 表示允许拉流。
+        """
+        return []
+
+    def poses(self, frames=45):
+        """骨骼关键点帧序列，按房间索引：{room: {camera_id, fps, frames, activity, confidence}}。
+
+        frames 为 [{ts, kp}]，kp 是 COCO-17 顺序的 [[u, v, score], ...]，
+        u/v 为房间内归一化坐标（0–1）。只传关键点、不传画面，是隐私底线。
+        """
+        return {}
+
     def pending_alerts(self, person=None):
         raise NotImplementedError
 
@@ -557,6 +575,62 @@ class BaseDataSource:
         return None
 
 
+# COCO-17 关键点站立基准（房间内归一化坐标，u 水平 / v 垂直）
+COCO_BASE = [
+    (0.50, 0.10),   # 0 鼻
+    (0.47, 0.085),  # 1 左眼
+    (0.53, 0.085),  # 2 右眼
+    (0.44, 0.10),   # 3 左耳
+    (0.56, 0.10),   # 4 右耳
+    (0.41, 0.20),   # 5 左肩
+    (0.59, 0.20),   # 6 右肩
+    (0.385, 0.33),  # 7 左肘
+    (0.615, 0.33),  # 8 右肘
+    (0.365, 0.46),  # 9 左腕
+    (0.635, 0.46),  # 10 右腕
+    (0.44, 0.52),   # 11 左髋
+    (0.56, 0.52),   # 12 右髋
+    (0.435, 0.72),  # 13 左膝
+    (0.565, 0.72),  # 14 右膝
+    (0.43, 0.92),   # 15 左踝
+    (0.57, 0.92),   # 16 右踝
+]
+
+
+def _demo_pose_frames(activity, frames=45, fps=15, seed=0):
+    """生成一段骨骼动画：按活动等级给不同幅度的手脚摆动与人体位移。
+
+    仅用于 DEMO——真实环境由边缘设备做姿态估计后上报关键点，前端只做播放。
+    """
+    t0 = time.time()
+    phase = (seed % 17) / 17 * 2 * math.pi
+    out = []
+    for i in range(max(1, frames)):
+        t = i / max(1, fps)
+        if activity == "移动":
+            cx = 0.5 + 0.16 * math.sin(2 * math.pi * t / 2.4)
+            arm, leg, breath = 0.030, 0.026, 0.006
+        elif activity == "活动":
+            cx = 0.5 + 0.05 * math.sin(2 * math.pi * t / 1.6 + phase)
+            arm, leg, breath = 0.024, 0.010, 0.004
+        else:
+            cx = 0.5 + 0.012 * math.sin(2 * math.pi * t / 3.5 + phase)
+            arm, leg, breath = 0.005, 0.003, 0.006
+        wobble = breath * math.sin(2 * math.pi * t * 0.45 + phase)
+        kp = []
+        for idx, (u, v) in enumerate(COCO_BASE):
+            du = 0.0
+            if idx in (7, 8, 9, 10):
+                du = (1 if idx in (7, 9) else -1) * arm * math.sin(2 * math.pi * t * 1.6 + phase)
+            elif idx in (13, 14, 15, 16):
+                du = (1 if idx in (13, 15) else -1) * leg * math.sin(2 * math.pi * t * 1.9 + phase)
+            nu = cx + (u - 0.5) * 0.55 + du
+            nv = 0.28 + (v - 0.10) * 0.55 + wobble
+            kp.append([round(nu, 4), round(nv, 4), 0.92])
+        out.append({"ts": round(t0 + t, 3), "kp": kp})
+    return out
+
+
 class DemoDataSource(BaseDataSource):
     """演示实现：数据落在 session_state，行为与原版本完全一致。"""
 
@@ -565,6 +639,52 @@ class DemoDataSource(BaseDataSource):
         if not user or user["password"] != password:
             return None
         return user
+
+    def cameras(self):
+        """演示：每个区域配一路固定摄像头，只让第一路在线，其余演示离线故障。"""
+        cams = []
+        for i, name in enumerate(st.session_state.areas or []):
+            online = i == 0
+            cams.append(
+                {
+                    "id": f"CAM-{chr(65 + i)}0{i + 1}",
+                    "room": name,
+                    "name": f"{name} 固定摄像头",
+                    "status": "在线" if online else "离线",
+                    "fps": 15 if online else 0,
+                    "pose": online,
+                    "stream": False,
+                    "last_seen": (
+                        now_local() - timedelta(minutes=0 if online else 26)
+                    ).strftime("%H:%M:%S"),
+                }
+            )
+        return cams
+
+    def poses(self, frames=45):
+        """演示：给在线摄像头按当前活动等级生成一段骨骼动画（COCO-17）。"""
+        cams = {c["room"]: c for c in self.cameras()}
+        df = st.session_state.get("demo_df")
+        out = {}
+        for i, name in enumerate(st.session_state.areas or []):
+            cam = cams.get(name)
+            if not cam or cam["status"] != "在线":
+                continue
+            activity = "静止"
+            if df is not None and not df.empty:
+                sub = df[df["监测区域"] == name]
+                if not sub.empty:
+                    activity = str(sub.iloc[-1]["活动状态"])
+            out[name] = {
+                "camera_id": cam["id"],
+                "fps": cam["fps"],
+                "activity": activity,
+                "confidence": round(0.70 + 0.28 * ((i * 7 + 3) % 10) / 9, 2),
+                "frames": _demo_pose_frames(
+                    activity, frames=frames, fps=max(8, cam["fps"]), seed=i + 7
+                ),
+            }
+        return out
 
     def series(self):
         now = now_local()
@@ -945,6 +1065,54 @@ class HttpDataSource(BaseDataSource):
             cache=False,
         ) or []
         return [self._map_alert(row) for row in rows]
+
+    def cameras(self):
+        """GET /api/v1/cameras → [{id, room, name, status, fps, pose, stream, last_seen}]。"""
+        data = self._request("GET", "/api/v1/cameras", cache=False)
+        if isinstance(data, dict):
+            data = data.get("items") or []
+        if not isinstance(data, list):
+            return []
+        return [
+            {
+                "id": str(c.get("id") or ""),
+                "room": c.get("room") or "",
+                "name": c.get("name") or c.get("id") or "摄像头",
+                "status": c.get("status") or "离线",
+                "fps": int(c.get("fps") or 0),
+                "pose": bool(c.get("pose")),
+                "stream": bool(c.get("stream")),
+                "last_seen": c.get("last_seen") or "",
+            }
+            for c in data
+            if isinstance(c, dict)
+        ]
+
+    def poses(self, frames=45):
+        """GET /api/v1/poses?frames=N → {room: {camera_id, fps, frames:[{ts, kp}], activity, confidence}}。
+
+        后端只返回关键点，不返回画面；坐标是房间内归一化 0–1。
+        """
+        data = self._request("GET", "/api/v1/poses", query={"frames": frames}, cache=False)
+        if not isinstance(data, dict):
+            return {}
+        rooms = data.get("rooms") if isinstance(data.get("rooms"), dict) else data
+        out = {}
+        for room, item in (rooms or {}).items():
+            if not isinstance(item, dict) or not item.get("frames"):
+                continue
+            out[str(room)] = {
+                "camera_id": item.get("camera_id") or "",
+                "fps": int(item.get("fps") or 15),
+                "activity": item.get("activity") or "",
+                "confidence": item.get("confidence"),
+                "frames": [
+                    {"ts": f.get("ts"), "kp": f.get("kp") or []}
+                    for f in item.get("frames", [])
+                    if isinstance(f, dict)
+                ],
+            }
+        return out
 
     def pending_alerts(self, person=None):
         rows = self._request(
@@ -4355,7 +4523,15 @@ _SPACE_JS = r"""
       + '<div class="txt">' + esc(ai.plain || '') + '</div>' + facts
       + (ai.action ? '<div class="act">' + esc(ai.action) + '</div>' : '')
       + '<div class="src">' + (ai.source === 'backend' ? 'AI 解释' : '本地模板')
-      + (ai.confidence ? ' · 置信 ' + Math.round(ai.confidence * 100) + '%' : '') + '</div>';
+      + (ai.confidence ? ' · 置信 ' + Math.round(ai.confidence * 100) + '%' : '') + '</div>'
+      + (room.pose
+          ? '<div class="src">骨骼 ' + esc(room.pose.camera_id || '摄像头') + ' · ' + (room.pose.fps || 0) + ' fps · '
+            + ((room.pose.frames || []).length) + ' 帧'
+            + (room.pose.confidence ? ' · 置信 ' + Math.round(room.pose.confidence * 100) + '%' : '') + '</div>'
+          : '')
+      + (room.camera && room.camera.status !== '在线'
+          ? '<div class="src">摄像头 ' + esc(room.camera.id || '') + ' 离线 · 最后心跳 ' + esc(room.camera.last_seen || '—') + '</div>'
+          : '');
     el.classList.add('show');
   }
   function alphaFor(r){
@@ -4367,6 +4543,93 @@ _SPACE_JS = r"""
   }
   function pulseFor(){
     return 0.55 + 0.45 * Math.sin(Date.now() / 620);
+  }
+
+  // COCO-17 骨架连线：躯干、双臂、双腿
+  var SK_EDGES = [
+    [0,1],[0,2],[1,3],[2,4],           // 头部
+    [5,6],[5,7],[6,8],[7,9],[8,10],    // 肩肘腕
+    [5,11],[6,12],[11,12],             // 躯干
+    [11,13],[12,14],[13,15],[14,16]    // 髋膝踝
+  ];
+
+  function skelPoint(baseX, u, v, z){
+    // kp 的 (u,v) 是房间平面内的归一化位置；渲染时把人"扶正"：
+    // 横向取 u，竖向把 v 折算成世界高度，避免俯视投影把人压成躺姿。
+    return project(baseX + (u - 0.5) * 1.0, 0.02 + (0.75 - v) * 0.95, z);
+  }
+
+  function drawSkeleton(r, fc, pulse){
+    if (!DATA.skeleton) return;
+    var pose = r.pose;
+    if (!pose || !pose.frames || !pose.frames.length) return;
+    var fr = pose.frames, n = fr.length;
+    var idx = 0;
+    if (n > 1){
+      var fps = pose.fps || 15;
+      var base = fr[0].ts || 0;
+      idx = Math.floor((Date.now() / 1000 - base) * fps) % n;
+      if (idx < 0) idx += n;
+    }
+    var kp = fr[idx].kp || [];
+    if (!kp.length) return;
+
+    var b = fc.b;
+    var wx = (b.x0 + b.x1) / 2, wz = (b.z0 + b.z1) / 2;
+    var cwid = b.x1 - b.x0;
+    // 人体重心决定站位：移动状态下人会在房间里左右挪
+    var uSum = 0, cnt = 0, i, k;
+    for (i = 0; i < kp.length; i++){
+      k = kp[i];
+      if (!k || (k[2] !== undefined && k[2] < 0.2)) continue;
+      uSum += k[0]; cnt++;
+    }
+    var uC = cnt ? uSum / cnt : 0.5;
+    var baseX = wx + (uC - 0.5) * cwid * 1.6;
+
+    var isSel = (sel === r.name);
+    var col = r.alerts > 0 ? '248,113,113' : (isSel ? '255,255,255' : '125,211,252');
+    var lift = 0.02 + 0.03 * pulse;
+    var pts = [];
+    for (i = 0; i < kp.length; i++){
+      k = kp[i];
+      if (!k || (k[2] !== undefined && k[2] < 0.2)){ pts.push(null); continue; }
+      pts.push(project(
+        baseX + (k[0] - 0.5) * 1.0,
+        lift + (0.75 - k[1]) * 0.95,
+        wz - (b.z1 - b.z0) * 0.12
+      ));
+    }
+    ctx.strokeStyle = 'rgba(' + col + ',' + (isSel ? 0.92 : 0.62) + ')';
+    ctx.lineWidth = isSel ? 2.2 : 1.5;
+    for (i = 0; i < SK_EDGES.length; i++){
+      var a = pts[SK_EDGES[i][0]], c2 = pts[SK_EDGES[i][1]];
+      if (!a || !c2) continue;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c2.x, c2.y); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(' + col + ',0.92)';
+    for (i = 0; i < pts.length; i++){
+      if (!pts[i]) continue;
+      ctx.beginPath(); ctx.arc(pts[i].x, pts[i].y, i <= 4 ? 1.8 : 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    if (pts[0]){
+      var hg = ctx.createRadialGradient(pts[0].x, pts[0].y, 0, pts[0].x, pts[0].y, 9);
+      hg.addColorStop(0, 'rgba(' + col + ',0.34)');
+      hg.addColorStop(1, 'rgba(' + col + ',0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    // 脚下落点：让"站在房间里"这件事一眼看得见
+    var foot = pts[15] || pts[16];
+    if (foot){
+      ctx.strokeStyle = 'rgba(' + col + ',0.28)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(foot.x, foot.y + 2, 6, 2.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   function drawFloor(){
@@ -4413,7 +4676,8 @@ _SPACE_JS = r"""
         { q: [T2, T3, B3, B2], d: (T2.d + T3.d) / 2 },
         { q: [T3, T0, B0, B3], d: (T3.d + T0.d) / 2 }
       ],
-      center: project(wx, hh, wz)
+      center: project(wx, hh, wz),
+      b: { x0: x0, x1: x1, z0: z0, z1: z1, y: hh }
     };
   }
 
@@ -4504,6 +4768,8 @@ _SPACE_JS = r"""
         ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(tp.x, tp.y, 14, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
 
+      drawSkeleton(r, fc, pulse);
+
       ctx.font = '11px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = sel === r.name ? '#FFFFFF' : 'rgba(203,213,225,0.9)';
@@ -4572,16 +4838,19 @@ _SPACE_JS = r"""
   }
 
   (function(){
-    var online = 0, total = 0, alerts = 0, actives = 0;
+    var online = 0, total = 0, alerts = 0, actives = 0, camOn = 0, camTotal = 0, skels = 0;
     for (var i = 0; i < rooms.length; i++){
       alerts += rooms[i].alerts || 0;
       if (rooms[i].activity === '活动' || rooms[i].activity === '移动') actives++;
       var ds = rooms[i].devices || [];
       total += ds.length;
       for (var j = 0; j < ds.length; j++) if (ds[j].online) online++;
+      if (rooms[i].camera){ camTotal++; if (rooms[i].camera.status === '在线') camOn++; }
+      if (rooms[i].pose) skels++;
     }
     document.getElementById('stats').innerHTML =
-      '房间<b>' + rooms.length + '</b><br>设备在线<b>' + online + '/' + total + '</b><br>待处理告警<b>' + alerts + '</b><br>房间有活动<b>' + actives + '</b>';
+      '房间<b>' + rooms.length + '</b><br>设备在线<b>' + online + '/' + total + '</b><br>待处理告警<b>' + alerts + '</b><br>房间有活动<b>' + actives + '</b>'
+      + (camTotal ? '<br>摄像头<b>' + camOn + '/' + camTotal + '</b>' + (skels ? ' · 骨骼<b>' + skels + '</b>路' : '') : '');
     if (DATA.summary){
       document.getElementById('stats').innerHTML += '<div style="margin-top:5px;color:#94A3B8">' + esc(DATA.summary) + '</div>';
     }
@@ -4706,8 +4975,43 @@ def _space_room_ai(name, activity, temp, alerts, devices):
     return _space_ai_template(name, activity, temp, alerts, devices)
 
 
+SPACE_POSE_TTL = float(os.environ.get("WIFI_SENSE_POSE_TTL", "8"))
+
+
+def refresh_space_pose(force=False):
+    """拉摄像头清单与骨骼帧，写进会话缓存供空间视图消费。
+
+    走 cache=False 但自己按 TTL 节流——空间视图每帧重绘都会读缓存，不能每次都打接口。
+    """
+    now = time.time()
+    if (
+        not force
+        and st.session_state.get("space_poses")
+        and now - float(st.session_state.get("space_pose_at") or 0) < SPACE_POSE_TTL
+    ):
+        return
+    try:
+        cam_list = source().cameras()
+        pose_map = source().poses(frames=30)
+    except DataSourceError as exc:
+        st.session_state.space_pose_error = str(exc)
+        st.session_state.space_pose_at = now
+        return
+    st.session_state.space_cameras = cam_list or []
+    st.session_state.space_poses = pose_map or {}
+    st.session_state.space_pose_at = now
+    st.session_state.space_pose_error = None
+
+
 def space_rooms(df, focus=None, layout=None):
-    """把区域、实时读数、设备、告警装配成空间视图的数据（layout 可覆盖自动排布）。"""
+    """把区域、实时读数、设备、告警、摄像头与骨骼装配成空间视图的数据（layout 可覆盖自动排布）。"""
+    refresh_space_pose()
+    cam_map = {
+        c.get("room"): c for c in (st.session_state.get("space_cameras") or [])
+    }
+    pose_map = st.session_state.get("space_poses") or {}
+    show_skel = bool(st.session_state.get("show_skeleton", True))
+
     areas = list(st.session_state.areas or [])
     override = layout if layout is not None else st.session_state.get("zone_layout")
     layout = _zone_layout(areas, override)
@@ -4742,6 +5046,8 @@ def space_rooms(df, focus=None, layout=None):
                     for d in room_devices
                 ],
                 "ai": _space_room_ai(name, activity, temp, len(room_alerts), room_devices),
+                "camera": cam_map.get(name),
+                "pose": pose_map.get(name) if show_skel else None,
                 "focus": bool(focus and name == focus),
             }
         )
@@ -4760,6 +5066,8 @@ def space_view(rooms, updated_at, height=340):
             "summary": str(st.session_state.get("space_summary") or ""),
             "baseline_ready": st.session_state.get("space_baseline_ready"),
             "ai_source": "backend" if ai_map else "template",
+            "skeleton": bool(st.session_state.get("show_skeleton", True)),
+            "pose_error": st.session_state.get("space_pose_error"),
         },
         ensure_ascii=False,
     )
@@ -7601,6 +7909,13 @@ def page_prefs():
     )
 
     section_title("显示内容", "决定页面露出多少技术细节")
+    st.toggle(
+        "三维显示骨骼视角",
+        value=bool(st.session_state.get("show_skeleton", True)),
+        key="show_skeleton",
+        help="在空间视图里画出摄像头识别到的人体骨骼；只显示关键点，不显示画面",
+    )
+    st.caption("骨骼来自摄像头端的关键点上报（COCO-17），本页不接收、不展示原始画面。")
     if family:
         st.toggle(
             "自动生成今日简报",
