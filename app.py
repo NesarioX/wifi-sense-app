@@ -4796,18 +4796,6 @@ def device_by_id(dev_id):
     return next((d for d in st.session_state.devices if d["id"] == dev_id), None)
 
 
-def sync_theme_toggle(light_on):
-    cur = st.session_state.get("theme", "glass")
-    if cur in ("glass", "glass_light"):
-        new_theme = "glass_light" if light_on else "glass"
-    else:
-        new_theme = "light" if light_on else "dark"
-
-    if new_theme != st.session_state.theme:
-        apply_theme(new_theme)
-        st.rerun()
-
-
 # ============================================================
 # 登录页
 # ============================================================
@@ -5016,13 +5004,6 @@ def render_login():
                     '<div class="role-desc">家庭监护与告警查看</div></div>',
                     unsafe_allow_html=True,
                 )
-
-            light = st.toggle(
-                "浅色主题",
-                value=st.session_state.get("theme") in ("light", "glass_light"),
-                key="theme_toggle_login",
-            )
-            sync_theme_toggle(light)
 
 
 # ============================================================
