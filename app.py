@@ -24,7 +24,7 @@ from contextlib import contextmanager
 
 import streamlit.components.v1 as components
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -38,8 +38,12 @@ _TZ = ZoneInfo("Asia/Shanghai")
 
 
 def now_local():
-    """当前本地时间（naive，Asia/Shanghai），用于所有展示与 DEMO 数据生成。"""
-    return datetime.now(_TZ).replace(tzinfo=None)
+    """当前本地时间（naive，Asia/Shanghai）。
+
+    从 UTC 绝对时间换算，而不是 datetime.now(_TZ)：后者会继承容器/节点的系统时区，
+    节点时区不是 UTC 时结果会整体偏移（内网节点就是这样，差了几小时）。
+    """
+    return datetime.now(timezone.utc).astimezone(_TZ).replace(tzinfo=None)
 
 st.set_page_config(
     page_title="Wi-Fi Sense | 智能监护平台",
