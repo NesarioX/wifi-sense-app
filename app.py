@@ -33,6 +33,14 @@ import streamlit as st
 
 APP_VERSION = "0.9.2"
 
+# 显示层统一按 Asia/Shanghai：容器时区（公网 UTC / 内网 Pod）都不影响界面时间
+_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def now_local():
+    """当前本地时间（naive，Asia/Shanghai），用于所有展示与 DEMO 数据生成。"""
+    return datetime.now(_TZ).replace(tzinfo=None)
+
 st.set_page_config(
     page_title="Wi-Fi Sense | 智能监护平台",
     page_icon="📡",
@@ -342,7 +350,7 @@ def init_state():
                 "room": "示范房间 A-01",
                 "status": "在线",
                 "enabled": True,
-                "last_seen": datetime.now(),
+                "last_seen": now_local(),
             },
             {
                 "id": "ESP32-TEMP-01",
@@ -360,7 +368,7 @@ def init_state():
                 "room": "示范房间 A-02",
                 "status": "在线",
                 "enabled": True,
-                "last_seen": datetime.now(),
+                "last_seen": now_local(),
             },
         ]
         if SEED_DEMO
@@ -373,7 +381,7 @@ def init_state():
         },
         "areas": ["示范房间 A-01", "示范房间 A-02"],
         "demo_df": None,
-        "last_refresh": datetime.now(),
+        "last_refresh": now_local(),
         "tasks": [],
         "api_error": None,
     }
@@ -551,7 +559,7 @@ class DemoDataSource(BaseDataSource):
         return user
 
     def series(self):
-        now = datetime.now()
+        now = now_local()
         rng = random.Random(int(time_seed()))
         records = []
         activity = 0
@@ -584,7 +592,7 @@ class DemoDataSource(BaseDataSource):
         else:
             st.session_state.demo_df = new
 
-        st.session_state.last_refresh = datetime.now()
+        st.session_state.last_refresh = now_local()
         return st.session_state.demo_df
 
     def alerts(self, person=None):
@@ -599,7 +607,7 @@ class DemoDataSource(BaseDataSource):
     def create_alert(self, level, category, message, room=None):
         alert = {
             "id": "AL-" + uuid.uuid4().hex[:8].upper(),
-            "time": datetime.now(),
+            "time": now_local(),
             "level": level,
             "category": category,
             "message": message,
@@ -614,7 +622,7 @@ class DemoDataSource(BaseDataSource):
             if alert["id"] == alert_id:
                 alert["status"] = "已确认"
                 alert["handler"] = handler or st.session_state.username
-                alert["handled_at"] = datetime.now()
+                alert["handled_at"] = now_local()
                 return alert
         return None
 
@@ -675,7 +683,7 @@ class DemoDataSource(BaseDataSource):
         )
         if device is not None:
             device["status"] = "在线"
-            device["last_seen"] = datetime.now()
+            device["last_seen"] = now_local()
         return device
 
     def save_settings(self, params, areas=None):
@@ -710,7 +718,7 @@ class DemoDataSource(BaseDataSource):
             return None
         if action == "start":
             task["status"] = "运行中"
-            task["started_at"] = task["started_at"] or datetime.now()
+            task["started_at"] = task["started_at"] or now_local()
         elif action == "pause":
             task["status"] = "已暂停"
         elif action == "resume":
@@ -724,7 +732,6 @@ class DemoDataSource(BaseDataSource):
 
 _API_CACHE = {}
 _API_CACHE_TTL = float(os.environ.get("WIFI_SENSE_API_TTL", "8"))
-_TZ = ZoneInfo("Asia/Shanghai")
 
 
 def _cache_get(key):
@@ -890,13 +897,13 @@ class HttpDataSource(BaseDataSource):
     def refresh(self):
         df = self.series()
         st.session_state.demo_df = df
-        st.session_state.last_refresh = datetime.now()
+        st.session_state.last_refresh = now_local()
         return df
 
     def _map_alert(self, row):
         return {
             "id": row.get("id"),
-            "time": self._ms_to_dt(row.get("ts")) or datetime.now(),
+            "time": self._ms_to_dt(row.get("ts")) or now_local(),
             "level": row.get("level") or "提示",
             "category": row.get("category") or "",
             "message": row.get("message") or "",
@@ -1089,7 +1096,7 @@ class HttpDataSource(BaseDataSource):
             "id": alert_id,
             "status": res.get("status") or "已确认",
             "handler": res.get("handler") or handler,
-            "handled_at": self._ms_to_dt(res.get("handled_at")) or datetime.now(),
+            "handled_at": self._ms_to_dt(res.get("handled_at")) or now_local(),
         }
         for item in st.session_state.alerts:
             if str(item.get("id")) == str(alert_id):
@@ -1324,7 +1331,7 @@ class HttpDataSource(BaseDataSource):
                 "mode": row.get("mode") or "持续监测",
                 "duration": int(row.get("duration") or 0),
                 "status": row.get("status") or "待启动",
-                "created_at": self._ms_to_dt(row.get("created_at")) or datetime.now(),
+                "created_at": self._ms_to_dt(row.get("created_at")) or now_local(),
                 "started_at": self._ms_to_dt(row.get("started_at")),
             }
             for row in tasks
@@ -4101,9 +4108,9 @@ def data_error(exc, hint="接口未接入或不可用，当前数据仅供参考
 
 def freshness_text(ts=None):
     """数据新鲜度：正常只显示更新时间，超过 10 分钟才补一句提示。"""
-    ts = ts or st.session_state.get("last_refresh") or datetime.now()
+    ts = ts or st.session_state.get("last_refresh") or now_local()
     label = "更新于 " + ts.strftime("%H:%M")
-    minutes = int((datetime.now() - ts).total_seconds() // 60)
+    minutes = int((now_local() - ts).total_seconds() // 60)
 
     if minutes >= 10:
         return f"{label} · 已 {minutes} 分钟未刷新"
@@ -5532,7 +5539,7 @@ def page_devices():
                     else:
                         device["status"] = result.get("status") or device["status"]
                         device["last_seen"] = (
-                            result.get("last_seen") or datetime.now()
+                            result.get("last_seen") or now_local()
                         )
                         if device["status"] != "在线":
                             st.warning("后端未返回在线状态，设备仍显示为未连接。")
@@ -6015,7 +6022,7 @@ def page_tasks():
                                 "mode": mode,
                                 "duration": int(duration),
                                 "status": "待启动",
-                                "created_at": datetime.now(),
+                                "created_at": now_local(),
                                 "started_at": None,
                             }
                         )
@@ -6078,7 +6085,7 @@ def page_tasks():
                                     task["started_at"] = (
                                         result.get("started_at")
                                         or task["started_at"]
-                                        or datetime.now()
+                                        or now_local()
                                     )
                                     st.rerun()
 
@@ -7511,7 +7518,7 @@ def page_prefs():
             st.download_button(
                 "导出告警（CSV）",
                 data=pd.DataFrame(rows).to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"wifi-sense-alerts-{datetime.now().strftime('%Y%m%d-%H%M')}.csv",
+                file_name=f"wifi-sense-alerts-{now_local().strftime('%Y%m%d-%H%M')}.csv",
                 mime="text/csv",
                 key="export_alerts",
                 width="stretch",
@@ -7525,7 +7532,7 @@ def page_prefs():
             st.download_button(
                 "导出今日简报（md）",
                 data=md.encode("utf-8"),
-                file_name=f"wifi-sense-brief-{datetime.now().strftime('%Y%m%d-%H%M')}.md",
+                file_name=f"wifi-sense-brief-{now_local().strftime('%Y%m%d-%H%M')}.md",
                 mime="text/markdown",
                 key="export_brief",
                 width="stretch",
@@ -7597,7 +7604,7 @@ def render_footer():
         )
 
     with right:
-        st.caption(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        st.caption(now_local().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 # 主题已从地址栏恢复，此刻再注入 CSS，避免刷新后先亮一帧默认深色玻璃
