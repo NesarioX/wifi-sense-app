@@ -4545,91 +4545,148 @@ _SPACE_JS = r"""
     return 0.55 + 0.45 * Math.sin(Date.now() / 620);
   }
 
-  // COCO-17 骨架连线：躯干、双臂、双腿
-  var SK_EDGES = [
-    [0,1],[0,2],[1,3],[2,4],           // 头部
-    [5,6],[5,7],[6,8],[7,9],[8,10],    // 肩肘腕
-    [5,11],[6,12],[11,12],             // 躯干
-    [11,13],[12,14],[13,15],[14,16]    // 髋膝踝
+  // ---- 人体骨骼：分段粗细 + 关节高光 + 头部/躯干体积 + 帧间插值 ----
+  var SK_BONES = [
+    [5,6,7.6],[5,7,4.8],[7,9,3.8],[6,8,4.8],[8,10,3.8],
+    [5,11,4.4],[6,12,4.4],[11,12,7.0],
+    [11,13,5.0],[13,15,4.0],[12,14,5.0],[14,16,4.0]
   ];
+  var SK_R = [2.0,1.2,1.2,1.2,1.2,3.0,3.0,2.4,2.4,2.0,2.0,3.0,3.0,2.6,2.6,2.2,2.2];
 
-  function skelPoint(baseX, u, v, z){
-    // kp 的 (u,v) 是房间平面内的归一化位置；渲染时把人"扶正"：
-    // 横向取 u，竖向把 v 折算成世界高度，避免俯视投影把人压成躺姿。
-    return project(baseX + (u - 0.5) * 1.0, 0.02 + (0.75 - v) * 0.95, z);
+  // 帧间线性插值：接口给的是一小段帧，按 fps 连续取值，重绘不再跳帧
+  function poseAt(pose){
+    var fr = pose.frames, n = fr.length;
+    if (!n) return null;
+    var fps = pose.fps || 15;
+    var t = (Date.now() / 1000 - (fr[0].ts || 0)) * fps;
+    t = t - Math.floor(t / n) * n;
+    var i0 = Math.floor(t) % n, i1 = (i0 + 1) % n, f = t - Math.floor(t);
+    var a = fr[i0].kp || [], b = fr[i1].kp || a, out = [], i;
+    for (i = 0; i < Math.max(a.length, b.length); i++){
+      var p = a[i] || b[i], q = b[i] || a[i];
+      if (!p || !q){ out.push(null); continue; }
+      out.push([p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f]);
+    }
+    return out;
   }
 
   function drawSkeleton(r, fc, pulse){
     if (!DATA.skeleton) return;
     var pose = r.pose;
-    if (!pose || !pose.frames || !pose.frames.length) return;
-    var fr = pose.frames, n = fr.length;
-    var idx = 0;
-    if (n > 1){
-      var fps = pose.fps || 15;
-      var base = fr[0].ts || 0;
-      idx = Math.floor((Date.now() / 1000 - base) * fps) % n;
-      if (idx < 0) idx += n;
-    }
-    var kp = fr[idx].kp || [];
-    if (!kp.length) return;
+    if (!pose) return;
+    var kp = poseAt(pose);
+    if (!kp || !kp.length) return;
 
     var b = fc.b;
     var wx = (b.x0 + b.x1) / 2, wz = (b.z0 + b.z1) / 2;
     var cwid = b.x1 - b.x0;
-    // 人体重心决定站位：移动状态下人会在房间里左右挪
-    var uSum = 0, cnt = 0, i, k;
-    for (i = 0; i < kp.length; i++){
-      k = kp[i];
-      if (!k || (k[2] !== undefined && k[2] < 0.2)) continue;
-      uSum += k[0]; cnt++;
-    }
-    var uC = cnt ? uSum / cnt : 0.5;
-    var baseX = wx + (uC - 0.5) * cwid * 1.6;
+    var uSum = 0, cnt = 0, i;
+    for (i = 0; i < kp.length; i++){ if (!kp[i]) continue; uSum += kp[i][0]; cnt++; }
+    var baseX = wx + ((cnt ? uSum / cnt : 0.5) - 0.5) * cwid * 1.6;
+    var depth = wz - (b.z1 - b.z0) * 0.12;
 
-    var isSel = (sel === r.name);
-    var col = r.alerts > 0 ? '248,113,113' : (isSel ? '255,255,255' : '125,211,252');
-    var lift = 0.02 + 0.03 * pulse;
     var pts = [];
     for (i = 0; i < kp.length; i++){
-      k = kp[i];
-      if (!k || (k[2] !== undefined && k[2] < 0.2)){ pts.push(null); continue; }
-      pts.push(project(
-        baseX + (k[0] - 0.5) * 1.0,
-        lift + (0.75 - k[1]) * 0.95,
-        wz - (b.z1 - b.z0) * 0.12
-      ));
+      pts.push(kp[i]
+        ? project(baseX + (kp[i][0] - 0.5) * 1.0, 0.02 + (0.75 - kp[i][1]) * 0.95, depth)
+        : null);
     }
-    ctx.strokeStyle = 'rgba(' + col + ',' + (isSel ? 0.92 : 0.62) + ')';
-    ctx.lineWidth = isSel ? 2.2 : 1.5;
-    for (i = 0; i < SK_EDGES.length; i++){
-      var a = pts[SK_EDGES[i][0]], c2 = pts[SK_EDGES[i][1]];
-      if (!a || !c2) continue;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c2.x, c2.y); ctx.stroke();
-    }
-    ctx.fillStyle = 'rgba(' + col + ',0.92)';
-    for (i = 0; i < pts.length; i++){
-      if (!pts[i]) continue;
-      ctx.beginPath(); ctx.arc(pts[i].x, pts[i].y, i <= 4 ? 1.8 : 2.4, 0, Math.PI * 2); ctx.fill();
-    }
-    if (pts[0]){
-      var hg = ctx.createRadialGradient(pts[0].x, pts[0].y, 0, pts[0].x, pts[0].y, 9);
-      hg.addColorStop(0, 'rgba(' + col + ',0.34)');
-      hg.addColorStop(1, 'rgba(' + col + ',0)');
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = hg;
-      ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, 9, 0, Math.PI * 2); ctx.fill();
+    var rgb = colorFor(r);
+    var isSel = (sel === r.name);
+    var A = isSel ? 1 : 0.96;
+
+    var sw = (pts[5] && pts[6]) ? Math.abs(pts[5].x - pts[6].x) : 0;
+    if (!sw || sw < 4) sw = (b.x1 - b.x0) * 0.34;
+    sw = Math.max(12, Math.min(46, sw));
+
+    function mid(p, q){ return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }; }
+    var foot = (pts[15] && pts[16])
+      ? { x: (pts[15].x + pts[16].x) / 2, y: Math.max(pts[15].y, pts[16].y) }
+      : (pts[15] || pts[16]);
+
+    // 1) 地面投影：人站在房间里，而不是浮着
+    if (foot){
+      var sg = ctx.createRadialGradient(0, 0, 0, 0, 0, sw * 1.0);
+      sg.addColorStop(0, 'rgba(0,0,0,0.46)');
+      sg.addColorStop(0.6, 'rgba(0,0,0,0.14)');
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.translate(foot.x, foot.y + 1);
+      ctx.scale(1, 0.30);
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(0, 0, sw, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
-    // 脚下落点：让"站在房间里"这件事一眼看得见
-    var foot = pts[15] || pts[16];
-    if (foot){
-      ctx.strokeStyle = 'rgba(' + col + ',0.28)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(foot.x, foot.y + 2, 6, 2.6, 0, 0, Math.PI * 2);
-      ctx.stroke();
+
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(' + rgb + ',' + (A * 0.45) + ')';
+    ctx.shadowBlur = 7;
+
+    // 统一画法：体积胶囊 + 关节球，最外一圈极淡轮廓光
+    function bone(a, z, w){
+      if (!a || !z) return;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (A * 0.13) + ')';
+      ctx.lineWidth = w + 1.8;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(z.x, z.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + rgb + ',' + (A * 0.56) + ')';
+      ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(z.x, z.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (A * 0.20) + ')';
+      ctx.lineWidth = Math.max(1, w * 0.30);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(z.x, z.y); ctx.stroke();
     }
+    function joint(p, rad, tone){
+      if (!p || !rad) return;
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (A * (tone || 0.60)) + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,' + (A * 0.24) + ')';
+      ctx.beginPath(); ctx.arc(p.x - rad * 0.3, p.y - rad * 0.3, rad * 0.46, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 躯干：肩中 → 髋中的粗管，两端用胸球、骨盆球收住，不会露出管口
+    if (pts[5] && pts[6] && pts[11] && pts[12]){
+      var sm = mid(pts[5], pts[6]), hm = mid(pts[11], pts[12]);
+      bone(sm, hm, sw * 0.80);
+      joint(hm, sw * 0.16, 0.55);
+    }
+
+    // 四肢：手臂上端向躯干内收，避免两根杆悬在身体两侧
+    var armL = pts[5] ? { x: pts[5].x + ((pts[6] ? (pts[5].x + pts[6].x) / 2 : pts[5].x) - pts[5].x) * 0.36, y: pts[5].y } : null;
+    var armR = pts[6] ? { x: pts[6].x + ((pts[5] ? (pts[5].x + pts[6].x) / 2 : pts[6].x) - pts[6].x) * 0.36, y: pts[6].y } : null;
+    bone(armL, pts[7], sw * 0.165); bone(pts[7], pts[9], sw * 0.130);
+    bone(armR, pts[8], sw * 0.165); bone(pts[8], pts[10], sw * 0.130);
+    bone(pts[11], pts[13], sw * 0.190); bone(pts[13], pts[15], sw * 0.150);
+    bone(pts[12], pts[14], sw * 0.190); bone(pts[14], pts[16], sw * 0.150);
+
+    // 关节球：填平管端折角，人形才连成一体
+    joint(pts[7], sw * 0.075); joint(pts[9], sw * 0.058);
+    joint(pts[8], sw * 0.075); joint(pts[10], sw * 0.058);
+    joint(pts[13], sw * 0.088); joint(pts[15], sw * 0.065);
+    joint(pts[14], sw * 0.088); joint(pts[16], sw * 0.065);
+
+    // 头与颈
+    if (pts[0] && pts[5] && pts[6]){
+      var hr = sw * 0.30;
+      var nk = mid(pts[5], pts[6]);
+      var hc = { x: pts[0].x, y: pts[0].y - hr * 1.20 };
+      ctx.strokeStyle = 'rgba(' + rgb + ',' + (A * 0.40) + ')';
+      ctx.lineWidth = Math.max(2, sw * 0.14);
+      ctx.beginPath(); ctx.moveTo(hc.x, hc.y + hr * 0.55); ctx.lineTo(nk.x, nk.y); ctx.stroke();
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (A * 0.72) + ')';
+      ctx.beginPath(); ctx.ellipse(hc.x, hc.y, hr * 0.90, hr, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,' + (A * 0.30) + ')';
+      ctx.beginPath(); ctx.ellipse(hc.x - hr * 0.22, hc.y - hr * 0.30, hr * 0.44, hr * 0.36, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (A * 0.18) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(hc.x, hc.y, hr * 0.90, hr, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // 脚掌
+    if (pts[15]) { ctx.fillStyle = 'rgba(' + rgb + ',' + (A * 0.34) + ')'; ctx.beginPath(); ctx.ellipse(pts[15].x, pts[15].y + 1, sw * 0.15, sw * 0.065, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (pts[16]) { ctx.fillStyle = 'rgba(' + rgb + ',' + (A * 0.34) + ')'; ctx.beginPath(); ctx.ellipse(pts[16].x, pts[16].y + 1, sw * 0.15, sw * 0.065, 0, 0, Math.PI * 2); ctx.fill(); }
+
+    ctx.restore();
   }
 
   function drawFloor(){
